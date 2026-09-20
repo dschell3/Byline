@@ -97,16 +97,13 @@ as usual. Same rules, just faster for tiny edits.
 
 ## 6. Running the site
 
-Use VS Code's built-in terminal (**Ctrl+`**). The exact commands live in
-the project README (they depend on the stack) — copy-paste them from
-there. If it won't start and the error means nothing to you, screenshot
-it into Discord.
+TODO: when repo is standing
 
 ## 7. When Git says "conflict"
 
 You and someone else changed the same lines and a human has to pick.
 **Don't guess and don't force anything** — post in Discord with your
-branch/PR link, and Darren or Jong will sort it out with you in minutes.
+branch/PR link, and Jang or Darren will sort it out ASAP.
 Conflicts are normal and boring, not emergencies.
 
 ## 8. Things that look scary but aren't
@@ -115,7 +112,7 @@ Conflicts are normal and boring, not emergencies.
   expected; work on your own branch (section 2).
 - **VS Code asks about "periodically run git fetch"** → yes is fine.
 - **You committed on `main` locally by accident** → GitHub will refuse
-  the push; ping Darren/Jong — your changes aren't lost.
+  the push; ping Darren/Jang — your changes aren't lost.
 - **Want to undo something** → Source Control ⋯ menu → Commit → Undo Last
   Commit, or just ask.
 
