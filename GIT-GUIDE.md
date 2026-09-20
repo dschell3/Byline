@@ -3,6 +3,19 @@ Our standard workflow is **VS Code on your own machine**; the browser
 covers quick one-file edits (section 5). If something happens that isn't
 on this page, stop and ping Jang or Darren in Discord and nothing here is unfixable.
 
+<details>
+<summary>Command-line equivalents (if you prefer the terminal)</summary>
+
+```bash
+git clone <repo-url>                     # one-time download
+git fetch origin                         # grab the latest from GitHub
+git switch -c yourname/task origin/main  # fresh branch off latest main
+git add -A && git commit -m "msg"        # save
+git push -u origin yourname/task         # upload, then open the PR on github.com
+```
+
+</details>
+
 ## How our branches work (the 30-second version)
 
 - **`main`**: the shared team branch. Your work gets here through a pull
@@ -44,7 +57,7 @@ That's it — you're on your own branch *and* you have the team's latest
 code, in one move. Do this at the start of every task instead of reusing
 old branches, and staleness is never your problem.
 
-<img src="image.png" alt="fresh branch" width="700">
+<img src="img/image.png" alt="fresh branch" width="700">
 
 ## 3. Save and upload your work
 
@@ -58,7 +71,7 @@ old branches, and staleness is never your problem.
 
 Commit small and often — every commit is a save point.
 
-<img src="image-1.png" alt="saving + uploading work" width="700">=
+<img src="img/image-1.png" alt="saving + uploading work" width="700">=
 
 ## 4. Open the pull request and get it merged
 
@@ -108,15 +121,3 @@ Conflicts are normal and boring, not emergencies.
 
 ---
 
-<details>
-<summary>Command-line equivalents (if you prefer the terminal)</summary>
-
-```bash
-git clone <repo-url>                     # one-time download
-git fetch origin                         # grab the latest from GitHub
-git switch -c yourname/task origin/main  # fresh branch off latest main
-git add -A && git commit -m "msg"        # save
-git push -u origin yourname/task         # upload, then open the PR on github.com
-```
-
-</details>
