@@ -44,7 +44,7 @@ That's it — you're on your own branch *and* you have the team's latest
 code, in one move. Do this at the start of every task instead of reusing
 old branches, and staleness is never your problem.
 
-<!-- TODO screenshot: branch picker, bottom-left corner -->
+<img src="image.png" alt="fresh branch" width="700">
 
 ## 3. Save and upload your work
 
@@ -58,7 +58,7 @@ old branches, and staleness is never your problem.
 
 Commit small and often — every commit is a save point.
 
-![commit image](image.png)
+<img src="image-1.png" alt="saving + uploading work" width="700">=
 
 ## 4. Open the pull request and get it merged
 
