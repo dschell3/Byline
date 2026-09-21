@@ -1,2 +1,59 @@
-# OverClock
-CSUS CSC190/191 Senior Project
+# Team Overclock: Senior Project
+ 
+A web dashboard for assigning, submitting, and reviewing intern work. Approved submissions earn points and are credited on the intern's record of completed work.
+ 
+CSC 190/191 Senior Project, Sacramento State, Fall 2026 to Spring 2027
+Team Overclock · Client: The Emerson Empire · Advisor: Kenneth Elliott
+ 
+> **Status:** Sprint 0. Product name, stack, and specifications not final.
+ 
+## Overview
+ 
+The client's founder currently assigns, tracks, and reviews all intern work by hand in an Excel spreadsheet. This project replaces it: supervisors post assignments, interns submit work in one place, reviewers approve or request changes, and approved work adds to a points ledger and a page listing the intern's approved work.
+ 
+## Features
+ 
+**Must-have:** sign-in with roles (member, supervisor, admin), assignments, intern dashboard, submissions, review with feedback, points ledger and approved-work page, notifications, hosted deployment.
+ 
+**CSC 191:** AI review assistant that drafts a score and feedback for the reviewer. It never approves work or awards points.
+ 
+**Nice-to-have:** Excel import, GitHub/Discord/Slack/calendar integrations, client access, analytics.
+ 
+## Tech stack
+ 
+TBD
+ 
+## Architecture
+ 
+TBD
+ 
+## Getting started
+ 
+TBD
+ 
+## Contributing
+ 
+TBD
+ 
+## Testing
+ 
+TBD
+ 
+## Deployment
+ 
+TBD
+ 
+## Team
+ 
+| Name | Role | GitHub |
+| --- | --- | --- |
+| Jangbahadar Singh | Team lead | |
+| | | |
+ 
+## Links
+ 
+Jira · Figma · Project website · Charter (all TBD)
+ 
+## License
+ 
+TBD
