@@ -7,9 +7,11 @@ on this page, stop and ping Jang or Darren in Discord and nothing here is unfixa
 <summary>Command-line equivalents (if you prefer the terminal)</summary>
 
 ```bash
+** This is the level you will create the repo **
 git clone <repo-url>                     # one-time download
+cd OverClock
 git fetch origin                         # grab the latest from GitHub
-git switch -c yourname/task origin/main  # fresh branch off latest main
+git switch -c yourname/task origin/main  # fresh branch off latest main - work on code
 git add -A && git commit -m "msg"        # save
 git push -u origin yourname/task         # upload, then open the PR on github.com
 ```
