@@ -56,6 +56,30 @@ python -m pytest
 
 The current tests need no database.
 
+## Code style
+
+Ruff is the single source of truth, configured in `pyproject.toml`. Line
+length is 100. The rule families and what each one enforces:
+
+| Rules | What they enforce |
+| --- | --- |
+| `E`, `W` | PEP 8 layout and whitespace |
+| `F` | No unused imports or undefined names |
+| `I` | Import order: standard library, third party, then our own modules |
+| `N` | `snake_case` functions and variables, `PascalCase` classes |
+| `ANN` | A type hint on every function signature |
+
+Install the dev tools once, then run both before opening a pull request:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .     # lint
+ruff format .    # format in place
+```
+
+Both must pass. If a rule feels wrong, change it in `pyproject.toml` in its
+own pull request rather than adding `# noqa` to the code.
+
 ## Migrations
 
 Alembic takes the database URL from `config.py`, never from `alembic.ini`,
@@ -79,3 +103,5 @@ runs, so import new model modules there as they are added.
 | `alembic.ini`, `alembic/` | Migration config and scripts |
 | `tests/` | pytest suite |
 | `requirements.txt` | Pinned dependencies |
+| `requirements-dev.txt` | Dev tools on top of the runtime pins (ruff) |
+| `pyproject.toml` | Ruff configuration, the code style rules |
