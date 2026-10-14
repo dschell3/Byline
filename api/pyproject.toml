@@ -1,0 +1,24 @@
+# SCRUM-63: the single source of truth for Python style in api/.
+# Reviewers point at this file instead of arguing style in a pull request.
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = [".venv", "alembic/versions"]
+
+[tool.ruff.lint]
+# E, W   pycodestyle: PEP 8 layout and whitespace
+# F      pyflakes: unused imports, undefined names
+# I      isort: import ordering
+# N      pep8-naming: snake_case functions and variables, PascalCase classes
+# ANN    flake8-annotations: a type hint on every function signature
+select = ["E", "W", "F", "I", "N", "ANN"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "db", "main", "tests"]
+# The local alembic/ folder makes ruff guess that the alembic package is
+# first-party. It is not; keep it with the other third-party imports.
+known-third-party = ["alembic"]
+
+[tool.ruff.format]
+quote-style = "double"
