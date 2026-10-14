@@ -10,7 +10,7 @@ def test_health_returns_200_and_status_ok() -> None:
     """GET /health answers 200 with the exact body Render expects."""
     client = TestClient(app)
     response = client.get("/health")
-    assert response.status_code == 500
+    assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
