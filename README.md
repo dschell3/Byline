@@ -48,11 +48,12 @@ TBD
 | Name | Role | GitHub |
 | --- | --- | --- |
 | Jangbahadar Singh | Team lead | |
+| Darren Schell | AI and backend | [dschell3](https://github.com/dschell3) |
 | | | |
  
 ## Links
  
-Jira · Figma · Project website · Charter (all TBD)
+[Jira](https://csus-team-notchuds.atlassian.net/jira/software/projects/SCRUM/boards/1) · Figma · Project website · Charter (Figma, website and charter TBD)
  
 ## License
  

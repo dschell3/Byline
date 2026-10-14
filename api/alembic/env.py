@@ -42,9 +42,7 @@ def run_migrations_online() -> None:
     """Run migrations against a live connection."""
     connectable = create_engine(database_url(), poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
 
