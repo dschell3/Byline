@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { Table } from '../components/ui/Table';
+import { Table, type Column } from '../components/ui/Table';
 
 type Theme = 'light' | 'dark';
 
@@ -53,6 +53,7 @@ type QueueRow = {
   detail: string;
   assignment: string;
   waiting: string;
+  waitingHours: number;
   status: Status;
 };
 
@@ -63,6 +64,7 @@ const queueRows: QueueRow[] = [
     detail: 'UX/UI · Cohort 7',
     assignment: 'Competitor audit: five UX portfolios',
     waiting: '2 days 4 hrs',
+    waitingHours: 52,
     status: 'submitted',
   },
   {
@@ -71,8 +73,31 @@ const queueRows: QueueRow[] = [
     detail: 'Web development · Cohort 7',
     assignment: 'Rebuild the pricing page in responsive CSS',
     waiting: '9 hrs',
+    waitingHours: 9,
     status: 'changes',
   },
+];
+
+const queueColumns: Column<QueueRow>[] = [
+  {
+    key: 'member',
+    header: 'Member',
+    sortValue: (r) => r.member,
+    render: (r) => (
+      <div>
+        <p className="text-card-title text-ink">{r.member}</p>
+        <p className="text-meta text-ink-meta">{r.detail}</p>
+      </div>
+    ),
+  },
+  { key: 'assignment', header: 'Assignment', render: (r) => r.assignment },
+  {
+    key: 'waiting',
+    header: 'Waiting',
+    sortValue: (r) => r.waitingHours,
+    render: (r) => <span className="text-ink-meta">{r.waiting}</span>,
+  },
+  { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} /> },
 ];
 
 function ThemePanel({ theme }: { theme: Theme }) {
@@ -167,30 +192,22 @@ function ThemePanel({ theme }: { theme: Theme }) {
       </Card>
 
       <h3 className="mt-6 text-card-title">Table</h3>
+      <p className="mt-1 text-meta text-ink-meta">Click Member or Waiting to sort.</p>
       <div className="mt-3">
         <Table
           caption="Submissions waiting for review"
           rows={queueRows}
           getRowKey={(r) => r.id}
-          columns={[
-            {
-              key: 'member',
-              header: 'Member',
-              render: (r) => (
-                <div>
-                  <p className="text-card-title text-ink">{r.member}</p>
-                  <p className="text-meta text-ink-meta">{r.detail}</p>
-                </div>
-              ),
-            },
-            { key: 'assignment', header: 'Assignment', render: (r) => r.assignment },
-            {
-              key: 'waiting',
-              header: 'Waiting',
-              render: (r) => <span className="text-ink-meta">{r.waiting}</span>,
-            },
-            { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} /> },
-          ]}
+          columns={queueColumns}
+        />
+      </div>
+      <div className="mt-3">
+        <Table
+          caption="Empty review queue"
+          rows={[]}
+          getRowKey={(r) => r.id}
+          columns={queueColumns}
+          emptyMessage="Nothing waiting for review. New submissions will show up here."
         />
       </div>
 
