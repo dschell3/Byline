@@ -1,0 +1,26 @@
+# Install once per clone: pip install pre-commit (or brew install pre-commit), then: pre-commit install
+# Matches the CI checks in .github/workflows/ci.yml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.0
+    hooks:
+      - id: ruff-check
+        name: ruff check (api)
+        files: ^api/
+      - id: ruff-format
+        name: ruff format (api)
+        files: ^api/
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint (web)
+        entry: npm --prefix web run lint
+        language: system
+        files: ^web/.*\.(js|jsx|ts|tsx)$
+        pass_filenames: false
+      - id: prettier
+        name: prettier (web)
+        entry: npm --prefix web run format:check
+        language: system
+        files: ^web/
+        pass_filenames: false
