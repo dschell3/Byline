@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router';
 import './index.css';
 import App from './App.tsx';
+import TokensPage from './pages/TokensPage.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -10,6 +11,7 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/signin" element={<p className="p-8 text-xl">Sign in (placeholder)</p>} />
+        <Route path="/tokens" element={<TokensPage />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
