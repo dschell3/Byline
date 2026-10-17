@@ -101,6 +101,9 @@ function ThemePanel({ theme }: { theme: Theme }) {
         <Button size="sm" variant="secondary">
           Skip
         </Button>
+        <Button size="sm" loading>
+          Saving
+        </Button>
       </div>
 
       <h3 className="mt-6 text-card-title">Form fields</h3>
