@@ -1,4 +1,6 @@
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
 
 type Theme = 'light' | 'dark';
 
@@ -98,6 +100,30 @@ function ThemePanel({ theme }: { theme: Theme }) {
         <Button size="sm" variant="secondary">
           Skip
         </Button>
+      </div>
+
+      <h3 className="mt-6 text-card-title">Form fields</h3>
+      <div className="mt-3 grid gap-4 md:grid-cols-3">
+        <Input label="Email address" type="email" defaultValue="amara.okafor@gmail.com" />
+        <Input
+          label="Due date"
+          defaultValue="3 Oct 2026, 11:59 PM"
+          hint="Shown to each member in their own timezone"
+        />
+        <Input
+          label="Pull request URL"
+          defaultValue="https//github.com/emerson/site/pul/88"
+          error="That does not look like a URL. Check it starts with https://"
+        />
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <Select label="Track" defaultValue="web" hint="The five tracks from the internship program">
+          <option value="web">Web design and development</option>
+          <option value="uxui">UX/UI design</option>
+          <option value="marketing">Digital marketing</option>
+          <option value="social">Social media management</option>
+          <option value="sales">Sales and marketing</option>
+        </Select>
       </div>
     </section>
   );
