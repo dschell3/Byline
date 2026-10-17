@@ -1,7 +1,11 @@
+import { useState } from 'react';
+import { Badge, type Status } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Dialog } from '../components/ui/Dialog';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { Table } from '../components/ui/Table';
 
 type Theme = 'light' | 'dark';
 
@@ -41,16 +45,39 @@ const typeScale = [
   },
 ];
 
-const statuses = [
-  { label: 'Due soon', className: 'bg-status-due-soon-fill text-status-due-soon-text' },
-  { label: 'Optional', className: 'bg-status-optional-fill text-status-optional-text' },
-  { label: 'Submitted', className: 'bg-status-submitted-fill text-status-submitted-text' },
-  { label: 'Changes requested', className: 'bg-status-changes-fill text-status-changes-text' },
-  { label: 'Overdue', className: 'bg-status-overdue-fill text-status-overdue-text' },
-  { label: 'Approved', className: 'bg-status-approved-fill text-status-approved-text' },
+const statuses: Status[] = ['due-soon', 'optional', 'submitted', 'changes', 'overdue', 'approved'];
+
+type QueueRow = {
+  id: string;
+  member: string;
+  detail: string;
+  assignment: string;
+  waiting: string;
+  status: Status;
+};
+
+const queueRows: QueueRow[] = [
+  {
+    id: 'pm',
+    member: 'Priya Menon',
+    detail: 'UX/UI · Cohort 7',
+    assignment: 'Competitor audit: five UX portfolios',
+    waiting: '2 days 4 hrs',
+    status: 'submitted',
+  },
+  {
+    id: 'ds',
+    member: 'Diego Salazar',
+    detail: 'Web development · Cohort 7',
+    assignment: 'Rebuild the pricing page in responsive CSS',
+    waiting: '9 hrs',
+    status: 'changes',
+  },
 ];
 
 function ThemePanel({ theme }: { theme: Theme }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
     <section data-theme={theme} className="rounded-lg border border-line bg-page p-6 text-ink-body">
       <h2 className="text-section">{theme === 'light' ? 'Light' : 'Dark'}</h2>
@@ -78,13 +105,7 @@ function ThemePanel({ theme }: { theme: Theme }) {
       <h3 className="mt-6 text-card-title">Status words</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {statuses.map((s) => (
-          <span
-            key={s.label}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta ${s.className}`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-            {s.label}
-          </span>
+          <Badge key={s} status={s} />
         ))}
       </div>
 
@@ -131,10 +152,7 @@ function ThemePanel({ theme }: { theme: Theme }) {
       <Card className="mt-3">
         <div className="flex items-start justify-between gap-3">
           <p className="text-card-title text-ink">Draft ten LinkedIn posts for October</p>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-status-due-soon-fill px-3 py-1 text-meta text-status-due-soon-text">
-            <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-            Due soon
-          </span>
+          <Badge status="due-soon" />
         </div>
         <p className="mt-2 text-body text-ink-body">Set by Marguerite Ellis · Digital marketing</p>
         <p className="mt-1 text-meta text-ink-meta">
@@ -144,6 +162,56 @@ function ThemePanel({ theme }: { theme: Theme }) {
           Open assignment
         </Button>
       </Card>
+
+      <h3 className="mt-6 text-card-title">Table</h3>
+      <div className="mt-3">
+        <Table
+          caption="Submissions waiting for review"
+          rows={queueRows}
+          getRowKey={(r) => r.id}
+          columns={[
+            {
+              key: 'member',
+              header: 'Member',
+              render: (r) => (
+                <div>
+                  <p className="text-card-title text-ink">{r.member}</p>
+                  <p className="text-meta text-ink-meta">{r.detail}</p>
+                </div>
+              ),
+            },
+            { key: 'assignment', header: 'Assignment', render: (r) => r.assignment },
+            {
+              key: 'waiting',
+              header: 'Waiting',
+              render: (r) => <span className="text-ink-meta">{r.waiting}</span>,
+            },
+            { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} /> },
+          ]}
+        />
+      </div>
+
+      <h3 className="mt-6 text-card-title">Dialog</h3>
+      <Button variant="secondary" className="mt-3" onClick={() => setDialogOpen(true)}>
+        Open dialog
+      </Button>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Create twelve weekly assignments"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={() => setDialogOpen(false)}>
+              Create 12 drafts
+            </Button>
+          </>
+        }
+      >
+        One per week, starting the week the cohort starts. You can edit any of them afterwards.
+      </Dialog>
     </section>
   );
 }
