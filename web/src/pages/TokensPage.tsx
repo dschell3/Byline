@@ -1,4 +1,5 @@
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 
@@ -125,6 +126,24 @@ function ThemePanel({ theme }: { theme: Theme }) {
           <option value="sales">Sales and marketing</option>
         </Select>
       </div>
+
+      <h3 className="mt-6 text-card-title">Card</h3>
+      <Card className="mt-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-card-title text-ink">Draft ten LinkedIn posts for October</p>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-status-due-soon-fill px-3 py-1 text-meta text-status-due-soon-text">
+            <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+            Due soon
+          </span>
+        </div>
+        <p className="mt-2 text-body text-ink-body">Set by Marguerite Ellis · Digital marketing</p>
+        <p className="mt-1 text-meta text-ink-meta">
+          Due Fri 3 Oct, 11:59 PM · in 4 days · 10 points
+        </p>
+        <Button variant="secondary" size="sm" className="mt-4">
+          Open assignment
+        </Button>
+      </Card>
     </section>
   );
 }

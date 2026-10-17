@@ -14,9 +14,8 @@ const variants: Record<Variant, string> = {
   primary: 'bg-primary text-primary-on hover:bg-primary/90 disabled:bg-line disabled:text-ink-meta',
   secondary:
     'border border-line bg-surface text-ink hover:bg-surface-recessed disabled:text-ink-meta',
-  danger:
-    'bg-status-overdue-text text-primary-on hover:bg-status-overdue-text/90 disabled:bg-line disabled:text-ink-meta',
-  ghost: 'bg-transparent text-primary hover:underline disabled:text-ink-meta disabled:no-underline',
+  danger: 'bg-danger text-primary-on hover:bg-danger/90 disabled:bg-line disabled:text-ink-meta',
+  ghost: 'bg-transparent text-link hover:underline disabled:text-ink-meta disabled:no-underline',
 };
 
 const sizes: Record<Size, string> = {

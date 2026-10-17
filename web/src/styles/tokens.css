@@ -12,6 +12,8 @@
   --color-primary: 27 58 107; /* #1B3A6B */
   --color-on-primary: 255 255 255;
   --color-accent: 90 75 209; /* #5A4BD1 */
+  --color-danger: 163 32 26; /* #A3201A, destructive buttons */
+  --color-link: 27 58 107; /* text links and ghost buttons */
 
   --status-due-soon-text: 20 66 127;
   --status-due-soon-fill: 224 234 250;
@@ -38,6 +40,8 @@
   --color-primary: 61 102 173;
   --color-on-primary: 255 255 255;
   --color-accent: 140 130 228; /* #8C82E4, the "on navy" value from Figma */
+  --color-danger: 185 48 42; /* deep enough for white text on dark */
+  --color-link: 157 190 242; /* light blue so links read on navy */
 
   --status-due-soon-text: 157 190 242;
   --status-due-soon-fill: 22 41 74;
