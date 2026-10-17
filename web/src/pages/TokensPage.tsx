@@ -1,3 +1,5 @@
+import { Button } from '../components/ui/Button';
+
 type Theme = 'light' | 'dark';
 
 const swatches = [
@@ -13,11 +15,27 @@ const swatches = [
 ];
 
 const typeScale = [
-  { label: 'Page title', className: 'font-serif text-page-title text-ink', sample: 'Twenty submissions waiting' },
+  {
+    label: 'Page title',
+    className: 'font-serif text-page-title text-ink',
+    sample: 'Twenty submissions waiting',
+  },
   { label: 'Section', className: 'font-serif text-section text-ink', sample: 'Changes requested' },
-  { label: 'Card title', className: 'text-card-title text-ink', sample: 'Rebuild the pricing page in responsive CSS' },
-  { label: 'Body', className: 'text-body text-ink-body', sample: 'Submit a link, a file, or paste your text.' },
-  { label: 'Meta', className: 'text-meta text-ink-meta', sample: 'Due Fri 3 Oct, 11:59 PM · in 4 days · 10 points' },
+  {
+    label: 'Card title',
+    className: 'text-card-title text-ink',
+    sample: 'Rebuild the pricing page in responsive CSS',
+  },
+  {
+    label: 'Body',
+    className: 'text-body text-ink-body',
+    sample: 'Submit a link, a file, or paste your text.',
+  },
+  {
+    label: 'Meta',
+    className: 'text-meta text-ink-meta',
+    sample: 'Due Fri 3 Oct, 11:59 PM · in 4 days · 10 points',
+  },
 ];
 
 const statuses = [
@@ -57,7 +75,10 @@ function ThemePanel({ theme }: { theme: Theme }) {
       <h3 className="mt-6 text-card-title">Status words</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {statuses.map((s) => (
-          <span key={s.label} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta ${s.className}`}>
+          <span
+            key={s.label}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta ${s.className}`}
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
             {s.label}
           </span>
@@ -65,13 +86,18 @@ function ThemePanel({ theme }: { theme: Theme }) {
       </div>
 
       <h3 className="mt-6 text-card-title">Buttons</h3>
-      <div className="mt-3 flex gap-3">
-        <button type="button" className="h-btn rounded-md bg-primary px-4 text-card-title text-primary-on">
-          Approve
-        </button>
-        <button type="button" className="h-btn rounded-md border border-line bg-surface px-4 text-card-title text-ink">
-          Request changes
-        </button>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button>Approve</Button>
+        <Button variant="secondary">Request changes</Button>
+        <Button variant="danger">Deactivate person</Button>
+        <Button disabled>Publish</Button>
+        <Button variant="ghost">Cancel</Button>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button size="sm">Approve</Button>
+        <Button size="sm" variant="secondary">
+          Skip
+        </Button>
       </div>
     </section>
   );
