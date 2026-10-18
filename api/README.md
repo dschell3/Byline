@@ -54,7 +54,10 @@ uvicorn main:app --reload
 python -m pytest
 ```
 
-The current tests need no database.
+Most tests need no database. The ledger tests in `tests/test_ledger.py`
+check a Postgres trigger, so they run only when `DATABASE_URL` points at a
+database that has had `alembic upgrade head` applied, and skip otherwise.
+CI has no Postgres yet, so they skip there and run locally.
 
 ## Code style
 
