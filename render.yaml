@@ -1,0 +1,68 @@
+# SCRUM-73: Render Blueprint for Byline.
+#
+# Everything the app needs to run is declared here, so the services can be
+# recreated in any Render account from this repository rather than rebuilt by
+# hand in the dashboard. That is the whole point: when the production account
+# is opened in The Emerson Empire's name, it points at this file and gets an
+# identical stack.
+#
+# Plans are currently `free` so the team can verify the deployment at no cost.
+# Moving to production is a two-line change:
+#   databases.plan  free -> basic-256mb   ($6/month)
+#   services.plan   free -> starter       ($7/month)
+#
+# Free-tier limits to be aware of while we are on it:
+#   - the Postgres instance is deleted 30 days after it is created
+#   - the API sleeps after 15 minutes idle and takes ~1 minute to wake
+#   - free web services cannot have a custom domain
+
+databases:
+  - name: byline-db
+    databaseName: byline
+    user: byline
+    plan: free
+    region: oregon
+
+services:
+  # --- Python API -----------------------------------------------------------
+  - type: web
+    name: byline-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    # Migrations run on boot. Alembic records applied revisions, so this is
+    # idempotent and a no-op once the schema is current.
+    startCommand: alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      # The single variable api/config.py reads. Render injects the managed
+      # database's own connection string; nothing is committed. api/db.py
+      # rewrites the scheme to postgresql+psycopg on the way through.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: byline-db
+          property: connectionString
+
+  # --- React client ---------------------------------------------------------
+  - type: web
+    name: byline-web
+    runtime: static
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # When the client starts calling the API, add a build-time variable here
+      # wired to byline-api. Static sites have no runtime environment, so the
+      # value must be baked in at build time (Vite reads VITE_* prefixed vars).
+    routes:
+      # React Router handles routing in the browser, so every path that is not
+      # a real file has to be served index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
