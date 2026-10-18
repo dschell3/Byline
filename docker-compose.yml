@@ -1,0 +1,62 @@
+# SCRUM-62: one command starts the whole stack.
+#   docker compose up        start everything (first run builds images, ~3 min)
+#   Ctrl+C                   stop
+#   docker compose down      stop and remove containers (keeps the database data)
+#   docker compose down -v   also wipe the database (fresh start)
+#
+# Values like ${POSTGRES_USER} come from the .env file next to this one.
+# Copy .env.example to .env first.
+
+services:
+
+  # PostgreSQL 16, per the card. Data survives restarts in the named volume.
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # The api service waits for this to pass before starting.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The FastAPI service, built from api/Dockerfile.
+  api:
+    build: ./api
+    environment:
+      # Inside Docker the database's hostname is the service name "db",
+      # not localhost. This overrides the localhost value in .env.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the source so --reload sees your edits without a rebuild.
+      - ./api:/app
+      # But keep the container's own .venv out of it, if someone has one.
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # The Vite dev server, built from web/Dockerfile.
+  web:
+    build: ./web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web:/app
+      # The mount above would hide the node_modules installed in the image.
+      # This anonymous volume keeps the container's copy on top.
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

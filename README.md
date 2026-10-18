@@ -29,7 +29,22 @@ TBD
  
 ## Getting started
  
-TBD
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop)
+and [Git](https://git-scm.com). Nothing else.
+
+1. Clone the repository and go into it:
+   `git clone https://github.com/dschell3/Byline.git && cd Byline`
+2. Create your local settings file from the template:
+   `cp .env.example .env` (the defaults work as they are)
+3. Start everything:
+   `docker compose up`
+   The first run takes a few minutes while it downloads and builds.
+4. Open http://localhost:5173 for the app and
+   http://localhost:8000/docs for the API.
+
+`Ctrl+C` stops it. `docker compose down -v` wipes the database for a fresh
+start. To run the API or front end without Docker, see `api/README.md` and
+`web/README.md`.
  
 ## Contributing
  
