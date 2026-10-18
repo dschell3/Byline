@@ -1,3 +1,8 @@
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+
 type Theme = 'light' | 'dark';
 
 const swatches = [
@@ -13,11 +18,27 @@ const swatches = [
 ];
 
 const typeScale = [
-  { label: 'Page title', className: 'font-serif text-page-title text-ink', sample: 'Twenty submissions waiting' },
+  {
+    label: 'Page title',
+    className: 'font-serif text-page-title text-ink',
+    sample: 'Twenty submissions waiting',
+  },
   { label: 'Section', className: 'font-serif text-section text-ink', sample: 'Changes requested' },
-  { label: 'Card title', className: 'text-card-title text-ink', sample: 'Rebuild the pricing page in responsive CSS' },
-  { label: 'Body', className: 'text-body text-ink-body', sample: 'Submit a link, a file, or paste your text.' },
-  { label: 'Meta', className: 'text-meta text-ink-meta', sample: 'Due Fri 3 Oct, 11:59 PM · in 4 days · 10 points' },
+  {
+    label: 'Card title',
+    className: 'text-card-title text-ink',
+    sample: 'Rebuild the pricing page in responsive CSS',
+  },
+  {
+    label: 'Body',
+    className: 'text-body text-ink-body',
+    sample: 'Submit a link, a file, or paste your text.',
+  },
+  {
+    label: 'Meta',
+    className: 'text-meta text-ink-meta',
+    sample: 'Due Fri 3 Oct, 11:59 PM · in 4 days · 10 points',
+  },
 ];
 
 const statuses = [
@@ -57,7 +78,10 @@ function ThemePanel({ theme }: { theme: Theme }) {
       <h3 className="mt-6 text-card-title">Status words</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {statuses.map((s) => (
-          <span key={s.label} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta ${s.className}`}>
+          <span
+            key={s.label}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta ${s.className}`}
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
             {s.label}
           </span>
@@ -65,14 +89,64 @@ function ThemePanel({ theme }: { theme: Theme }) {
       </div>
 
       <h3 className="mt-6 text-card-title">Buttons</h3>
-      <div className="mt-3 flex gap-3">
-        <button type="button" className="h-btn rounded-md bg-primary px-4 text-card-title text-primary-on">
-          Approve
-        </button>
-        <button type="button" className="h-btn rounded-md border border-line bg-surface px-4 text-card-title text-ink">
-          Request changes
-        </button>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button>Approve</Button>
+        <Button variant="secondary">Request changes</Button>
+        <Button variant="danger">Deactivate person</Button>
+        <Button disabled>Publish</Button>
+        <Button variant="ghost">Cancel</Button>
       </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button size="sm">Approve</Button>
+        <Button size="sm" variant="secondary">
+          Skip
+        </Button>
+        <Button size="sm" loading>
+          Saving
+        </Button>
+      </div>
+
+      <h3 className="mt-6 text-card-title">Form fields</h3>
+      <div className="mt-3 grid gap-4 md:grid-cols-3">
+        <Input label="Email address" type="email" defaultValue="amara.okafor@gmail.com" />
+        <Input
+          label="Due date"
+          defaultValue="3 Oct 2026, 11:59 PM"
+          hint="Shown to each member in their own timezone"
+        />
+        <Input
+          label="Pull request URL"
+          defaultValue="https//github.com/emerson/site/pul/88"
+          error="That does not look like a URL. Check it starts with https://"
+        />
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <Select label="Track" defaultValue="web" hint="The five tracks from the internship program">
+          <option value="web">Web design and development</option>
+          <option value="uxui">UX/UI design</option>
+          <option value="marketing">Digital marketing</option>
+          <option value="social">Social media management</option>
+          <option value="sales">Sales and marketing</option>
+        </Select>
+      </div>
+
+      <h3 className="mt-6 text-card-title">Card</h3>
+      <Card className="mt-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-card-title text-ink">Draft ten LinkedIn posts for October</p>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-status-due-soon-fill px-3 py-1 text-meta text-status-due-soon-text">
+            <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+            Due soon
+          </span>
+        </div>
+        <p className="mt-2 text-body text-ink-body">Set by Marguerite Ellis · Digital marketing</p>
+        <p className="mt-1 text-meta text-ink-meta">
+          Due Fri 3 Oct, 11:59 PM · in 4 days · 10 points
+        </p>
+        <Button variant="secondary" size="sm" className="mt-4">
+          Open assignment
+        </Button>
+      </Card>
     </section>
   );
 }

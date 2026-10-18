@@ -1,27 +1,35 @@
 /* SCRUM-70: Byline design tokens. Values are R G B channels so Tailwind opacity modifiers work. */
 
 :root,
-[data-theme="light"] {
-  --color-page: 238 242 247;          /* #EEF2F7 */
-  --color-surface: 255 255 255;       /* #FFFFFF */
+[data-theme='light'] {
+  --color-page: 238 242 247; /* #EEF2F7 */
+  --color-surface: 255 255 255; /* #FFFFFF */
   --color-surface-recessed: 247 249 252; /* #F7F9FC */
-  --color-line: 214 222 232;          /* #D6DEE8 */
-  --color-ink: 15 29 51;              /* #0F1D33 */
-  --color-ink-body: 58 74 97;         /* #3A4A61 */
-  --color-ink-meta: 85 105 138;       /* #55698A */
-  --color-primary: 27 58 107;         /* #1B3A6B */
+  --color-line: 214 222 232; /* #D6DEE8 */
+  --color-ink: 15 29 51; /* #0F1D33 */
+  --color-ink-body: 58 74 97; /* #3A4A61 */
+  --color-ink-meta: 85 105 138; /* #55698A */
+  --color-primary: 27 58 107; /* #1B3A6B */
   --color-on-primary: 255 255 255;
-  --color-accent: 90 75 209;          /* #5A4BD1 */
+  --color-accent: 90 75 209; /* #5A4BD1 */
+  --color-danger: 163 32 26; /* #A3201A, destructive buttons */
+  --color-link: 27 58 107; /* text links and ghost buttons */
 
-  --status-due-soon-text: 20 66 127;  --status-due-soon-fill: 224 234 250;
-  --status-optional-text: 66 83 110;  --status-optional-fill: 230 235 242;
-  --status-submitted-text: 14 95 95;  --status-submitted-fill: 216 237 237;
-  --status-changes-text: 138 79 0;    --status-changes-fill: 250 231 204;
-  --status-overdue-text: 163 32 26;   --status-overdue-fill: 250 223 221;
-  --status-approved-text: 21 96 47;   --status-approved-fill: 217 237 224;
+  --status-due-soon-text: 20 66 127;
+  --status-due-soon-fill: 224 234 250;
+  --status-optional-text: 66 83 110;
+  --status-optional-fill: 230 235 242;
+  --status-submitted-text: 14 95 95;
+  --status-submitted-fill: 216 237 237;
+  --status-changes-text: 138 79 0;
+  --status-changes-fill: 250 231 204;
+  --status-overdue-text: 163 32 26;
+  --status-overdue-fill: 250 223 221;
+  --status-approved-text: 21 96 47;
+  --status-approved-fill: 217 237 224;
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   --color-page: 11 18 32;
   --color-surface: 17 26 43;
   --color-surface-recessed: 14 22 38;
@@ -31,12 +39,20 @@
   --color-ink-meta: 143 160 184;
   --color-primary: 61 102 173;
   --color-on-primary: 255 255 255;
-  --color-accent: 140 130 228;        /* #8C82E4, the "on navy" value from Figma */
+  --color-accent: 140 130 228; /* #8C82E4, the "on navy" value from Figma */
+  --color-danger: 185 48 42; /* deep enough for white text on dark */
+  --color-link: 157 190 242; /* light blue so links read on navy */
 
-  --status-due-soon-text: 157 190 242; --status-due-soon-fill: 22 41 74;
-  --status-optional-text: 180 192 210; --status-optional-fill: 31 42 60;
-  --status-submitted-text: 124 207 207; --status-submitted-fill: 15 51 51;
-  --status-changes-text: 242 183 102;  --status-changes-fill: 58 39 8;
-  --status-overdue-text: 242 154 147;  --status-overdue-fill: 61 21 19;
-  --status-approved-text: 134 211 160; --status-approved-fill: 18 51 31;
+  --status-due-soon-text: 157 190 242;
+  --status-due-soon-fill: 22 41 74;
+  --status-optional-text: 180 192 210;
+  --status-optional-fill: 31 42 60;
+  --status-submitted-text: 124 207 207;
+  --status-submitted-fill: 15 51 51;
+  --status-changes-text: 242 183 102;
+  --status-changes-fill: 58 39 8;
+  --status-overdue-text: 242 154 147;
+  --status-overdue-fill: 61 21 19;
+  --status-approved-text: 134 211 160;
+  --status-approved-fill: 18 51 31;
 }

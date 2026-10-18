@@ -27,6 +27,8 @@ export default {
           on: token('color-on-primary'),
         },
         accent: token('color-accent'),
+        danger: token('color-danger'),
+        link: token('color-link'),
         // The six status words: text colour + fill colour
         status: {
           'due-soon': { text: token('status-due-soon-text'), fill: token('status-due-soon-fill') },
