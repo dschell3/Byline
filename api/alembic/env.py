@@ -9,6 +9,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
+import models  # noqa: F401
 from config import get_settings
 from db import Base, as_psycopg_url
 
