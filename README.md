@@ -56,7 +56,10 @@ TBD
  
 ## Deployment
  
-TBD
+- Front end: https://byline-web-eh4k.onrender.com/
+- API health check: https://byline-api-mn90.onrender.com/health
+
+Note: the API runs on the free tier and takes about a minute to wake up after being idle.
  
 ## Team
  
