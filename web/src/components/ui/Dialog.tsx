@@ -6,11 +6,10 @@ export type DialogProps = {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  // eslint-disable-next-line react/require-default-props
   actions?: ReactNode;
 };
 
-export function Dialog({ open, onClose, title, children, actions }: DialogProps) {
+export function Dialog({ open, onClose, title, children, actions = null }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 

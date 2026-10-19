@@ -2,24 +2,18 @@ import { useState, type ReactNode } from 'react';
 
 // SCRUM-72: table from the Figma foundations page. Recessed header, hairline rows.
 // Columns with a sortValue get a clickable header; an empty table shows a message instead of nothing.
-// The no-unused-vars disables are for the base JS rule, which misreads parameter names in TypeScript types.
 export type Column<T> = {
   key: string;
   header: string;
-  // eslint-disable-next-line no-unused-vars
   render: (row: T) => ReactNode;
-  // eslint-disable-next-line no-unused-vars
   sortValue?: (row: T) => string | number;
 };
 
 export type TableProps<T> = {
   columns: Column<T>[];
   rows: T[];
-  // eslint-disable-next-line no-unused-vars
   getRowKey: (row: T) => string;
-  // eslint-disable-next-line react/require-default-props
   caption?: string;
-  // eslint-disable-next-line react/require-default-props
   emptyMessage?: string;
 };
 
@@ -29,7 +23,7 @@ export function Table<T>({
   columns,
   rows,
   getRowKey,
-  caption,
+  caption = '',
   emptyMessage = 'Nothing here yet.',
 }: TableProps<T>) {
   const [sort, setSort] = useState<Sort | null>(null);
@@ -59,7 +53,7 @@ export function Table<T>({
   return (
     <div className="overflow-x-auto rounded-lg border border-line bg-surface">
       <table className="w-full text-left text-body">
-        {caption && <caption className="sr-only">{caption}</caption>}
+        {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="bg-surface-recessed">
           <tr>
             {columns.map((c) => {
