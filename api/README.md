@@ -48,6 +48,37 @@ uvicorn main:app --reload
   health check.
 - <http://localhost:8000/docs> is the interactive API documentation.
 
+## Sign-in
+
+`POST /auth/sign-in` with JSON `{"email": "...", "password": "..."}`.
+
+| Result | Status | Body |
+| --- | --- | --- |
+| Correct credentials | 200 | `{"id": 1, "full_name": "..."}` |
+| Wrong password or unknown email | 401 | `{"detail": "Email or password is incorrect."}` |
+| Too many failures | 429 | `{"detail": "Too many sign-in attempts. Try again later."}` plus a `Retry-After` header |
+
+The two failure cases are deliberately identical in status, body and timing,
+so a response never reveals whether an email is registered. The hash check
+runs on both paths, against a dummy hash when there is no account.
+
+Passwords are hashed with Argon2id (`security.py`) and never stored or logged
+in plain text. Failures are rate-limited (`ratelimit.py`): 5 per account and
+20 per client IP in any 15-minute window. A successful sign-in clears the
+account's count. The counters live in the process, which is right for one
+instance and would need a shared store if the API ever runs several.
+
+Sessions and cookies are added on the success path by SCRUM-13.
+
+To get an account to try locally, with `DATABASE_URL` set and migrations
+applied:
+
+```bash
+python scripts/create_person.py you@example.com "Your Name" 'a password'
+```
+
+That script is a dev helper only and goes away when the invite flow (SCRUM-11) lands.
+
 ## Tests
 
 ```bash
