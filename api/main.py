@@ -2,7 +2,10 @@
 
 from fastapi import FastAPI
 
+from routers import auth
+
 app = FastAPI(title="OverClock API")
+app.include_router(auth.router)
 
 
 @app.get("/health")
