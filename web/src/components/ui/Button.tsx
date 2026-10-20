@@ -25,12 +25,9 @@ const sizes: Record<Size, string> = {
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   // React 19 removed defaultProps for function components, so defaults live in the parameters below.
-  // eslint-disable-next-line react/require-default-props
   variant?: Variant;
-  // eslint-disable-next-line react/require-default-props
   size?: Size;
   // Shows a spinner, keeps the button's colour, and ignores clicks until the action finishes.
-  // eslint-disable-next-line react/require-default-props
   loading?: boolean;
 };
 

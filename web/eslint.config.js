@@ -26,6 +26,11 @@ export default [
       // React 17+ JSX transform: no need to import React in every file.
       'react/react-in-jsx-scope': 'off',
       'react/jsx-uses-react': 'off',
+      // React 19 + TS: optional props use default arguments, not defaultProps.
+      'react/require-default-props': ['error', { functions: 'defaultArguments' }],
+      // The base rule misreads TypeScript types; use the TypeScript-aware one.
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'error',
     },
   },
   {
