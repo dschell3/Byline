@@ -4,17 +4,15 @@ import { useId, type InputHTMLAttributes } from 'react';
 // Label above, 44px field, optional hint below, red border and message when there's an error.
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  // eslint-disable-next-line react/require-default-props
   hint?: string;
-  // eslint-disable-next-line react/require-default-props
   error?: string;
 };
 
-export function Input({ label, hint, error, id, className = '', ...props }: InputProps) {
+export function Input({ label, hint = '', error = '', id, className = '', ...props }: InputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const messageId = `${inputId}-message`;
-  const message = error ?? hint;
+  const message = error || hint;
 
   return (
     <div className={className}>

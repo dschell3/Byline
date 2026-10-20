@@ -3,16 +3,14 @@ import { useId, type SelectHTMLAttributes } from 'react';
 // SCRUM-71: dropdown that matches Input: same label, height, border and error state.
 export type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   label: string;
-  // eslint-disable-next-line react/require-default-props
   hint?: string;
-  // eslint-disable-next-line react/require-default-props
   error?: string;
 };
 
 export function Select({
   label,
-  hint,
-  error,
+  hint = '',
+  error = '',
   id,
   className = '',
   children,
@@ -21,7 +19,7 @@ export function Select({
   const generatedId = useId();
   const selectId = id ?? generatedId;
   const messageId = `${selectId}-message`;
-  const message = error ?? hint;
+  const message = error || hint;
 
   return (
     <div className={className}>
