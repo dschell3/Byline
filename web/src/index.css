@@ -15,3 +15,23 @@
     @apply font-serif text-ink;
   }
 }
+
+@layer components {
+  /* Ruled-paper lines behind P01, from the Figma frame. Faded towards the form on the page side. */
+  .ruled-page {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgb(var(--color-line) / 0.5) 0 1px,
+      transparent 1px 15px
+    );
+    mask-image: linear-gradient(to left, #000, transparent);
+  }
+
+  .ruled-navy {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgb(var(--navy-meta) / 0.14) 0 1px,
+      transparent 1px 16px
+    );
+  }
+}

@@ -27,6 +27,19 @@ export default {
           on: token('color-on-primary'),
         },
         accent: token('color-accent'),
+        // Always-navy brand panel, the same in light and dark (P01)
+        navy: {
+          DEFAULT: token('navy'),
+          heading: token('navy-heading'),
+          body: token('navy-body'),
+          quote: token('navy-quote'),
+          meta: token('navy-meta'),
+          footer: token('navy-footer'),
+          rule: token('navy-rule'),
+          bar: token('navy-bar'),
+          accent: token('navy-accent'),
+          check: token('navy-check'),
+        },
         danger: token('color-danger'),
         link: token('color-link'),
         // The six status words: text colour + fill colour
