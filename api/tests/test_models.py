@@ -21,6 +21,7 @@ EXPECTED_TABLES = {
     "notification",
     "audit_log",
     "auth_session",
+    "invite",
 }
 
 
