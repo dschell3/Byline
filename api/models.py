@@ -1,4 +1,4 @@
-"""SQLAlchemy models for the twelve Byline tables (SCRUM-68).
+"""SQLAlchemy models for the Byline tables (SCRUM-68, auth_session from SCRUM-13).
 
 The source of truth is docs/erd.md. Every table follows its rules:
 bigint ids, TIMESTAMPTZ everywhere, foreign keys and NOT NULL declared here
@@ -274,3 +274,28 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )
+
+
+class AuthSession(Base):
+    """A signed-in browser (SCRUM-13).
+
+    The cookie carries a random token; only its SHA-256 is stored, so a leaked
+    database row cannot be replayed as a session. Revoking sets ``revoked_at``
+    rather than deleting, so sign-out is enforced server-side and auditable.
+    """
+
+    __tablename__ = "auth_session"
+
+    # SQLite only auto-numbers a plain INTEGER primary key; Postgres keeps bigint.
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    person_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("person.id"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
