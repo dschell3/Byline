@@ -33,7 +33,7 @@ The client's founder currently assigns, tracks, and reviews all intern work by h
 
 ## Architecture
 
-Two deployable pieces and a database. The React app in `web/` is a single-page application that talks to the FastAPI service in `api/` over JSON. The API owns the schema: twelve tables defined as SQLAlchemy models and created by Alembic migrations, never by hand. The entity-relationship diagram and the decisions behind it are in [`docs/erd.md`](docs/erd.md); the points ledger is append-only, so a correction is a new reversing row rather than an edit.
+Two deployable pieces and a database. The React app in `web/` is a single-page application that talks to the FastAPI service in `api/` over JSON. The API owns the schema: tables defined as SQLAlchemy models and created by Alembic migrations, never by hand. The entity-relationship diagram and the decisions behind it are in [`docs/erd.md`](docs/erd.md); the points ledger is append-only, so a correction is a new reversing row rather than an edit.
 
 The design system lives in `web/src/styles/tokens.css` (colour, type and spacing as CSS variables with light and dark values) and `web/src/components/ui/` (Button, Input, Select, Card, Badge, Dialog, Table). The `/tokens` route renders all of it in both themes.
 

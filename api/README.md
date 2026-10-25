@@ -68,7 +68,39 @@ in plain text. Failures are rate-limited (`ratelimit.py`): 5 per account and
 account's count. The counters live in the process, which is right for one
 instance and would need a shared store if the API ever runs several.
 
-Sessions and cookies are added on the success path by SCRUM-13.
+### Sessions (SCRUM-13)
+
+A successful sign-in starts a server-side session (`sessions.py`) and sets
+the `byline_session` cookie: HTTP-only, Secure, SameSite=Lax, path `/`. The
+browser never stores a token anywhere a script can read it. The database
+keeps only the token's SHA-256 in `auth_session`.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /auth/me` | 200 `{"id", "full_name", "roles"}`, or 401 when there is no live session |
+| `POST /auth/sign-out` | 204. Revokes the session in the database, then clears the cookie |
+
+A session ends after 2 hours idle or 30 days in total, whichever comes first,
+and on sign-out. Signing in again retires the browser's previous token.
+
+Roles come from `membership` on every request, never from the cookie, so a
+role change applies immediately. Protect a route with a dependency:
+
+```python
+from sessions import CurrentUser, current_user, require_role
+
+
+@router.get("/review-queue")
+def review_queue(user: CurrentUser = Depends(require_role("supervisor", "admin"))) -> ...: ...
+```
+
+`current_user` answers 401 (not signed in), `require_role` answers 403
+(signed in, wrong role). The web app treats a 401 as "send to sign-in and
+come back here afterwards".
+
+The web app calls the API as `/api/...` on its own origin: Vite proxies it
+locally and a rewrite in `render.yaml` does it on Render. That is what lets
+a SameSite cookie travel without CORS.
 
 To get an account to try locally, with `DATABASE_URL` set and migrations
 applied:

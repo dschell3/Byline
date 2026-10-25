@@ -1,9 +1,9 @@
-"""Sign-in endpoint (SCRUM-9).
+"""Sign-in, sign-out and who-am-I (SCRUM-9, SCRUM-13).
 
-Every failure, wrong password or unknown email, returns the same status,
-the same body and takes the same time, so the response never reveals
-whether an account exists. Sessions and cookies are added on the success
-path by SCRUM-13.
+Every sign-in failure, wrong password or unknown email, returns the same
+status, the same body and takes the same time, so the response never
+reveals whether an account exists. Success starts a server-side session and
+sets its cookie (sessions.py).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -15,6 +15,15 @@ from db import get_db
 from models import Person
 from ratelimit import by_account, by_ip
 from security import verify_password
+from sessions import (
+    COOKIE_NAME,
+    CurrentUser,
+    clear_session_cookie,
+    current_user,
+    end_session,
+    set_session_cookie,
+    start_session,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,6 +39,12 @@ class SignInRequest(BaseModel):
 class SignInResponse(BaseModel):
     id: int
     full_name: str
+
+
+class MeResponse(BaseModel):
+    id: int
+    full_name: str
+    roles: list[str]
 
 
 def client_ip(request: Request) -> str:
@@ -73,5 +88,23 @@ def sign_in(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=INVALID_CREDENTIALS)
 
     by_account.clear(email)
+    # A fresh token on every sign-in, and the browser's old one retired, so a
+    # token planted before sign-in is never promoted to a signed-in session.
+    end_session(db, request.cookies.get(COOKIE_NAME))
+    set_session_cookie(response, start_session(db, person.id))
     response.headers["Cache-Control"] = "no-store"
     return SignInResponse(id=person.id, full_name=person.full_name)
+
+
+@router.post("/sign-out", status_code=status.HTTP_204_NO_CONTENT)
+def sign_out(request: Request, response: Response, db: Session = Depends(get_db)) -> None:
+    """Revoke the session in the database, then clear the cookie. Always 204."""
+    end_session(db, request.cookies.get(COOKIE_NAME))
+    clear_session_cookie(response)
+
+
+@router.get("/me", response_model=MeResponse)
+def me(response: Response, user: CurrentUser = Depends(current_user)) -> MeResponse:
+    """The signed-in person and their roles. 401 when the session has ended."""
+    response.headers["Cache-Control"] = "no-store"
+    return MeResponse(id=user.person.id, full_name=user.person.full_name, roles=sorted(user.roles))

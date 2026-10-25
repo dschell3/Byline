@@ -20,11 +20,12 @@ EXPECTED_TABLES = {
     "points_ledger",
     "notification",
     "audit_log",
+    "auth_session",
 }
 
 
-def test_all_twelve_tables_are_defined() -> None:
-    """The ERD's twelve tables, no more, no fewer."""
+def test_every_erd_table_is_defined() -> None:
+    """The ERD's tables, no more, no fewer."""
     assert set(Base.metadata.tables) == EXPECTED_TABLES
 
 

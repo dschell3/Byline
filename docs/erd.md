@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5 with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -12,7 +12,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 - Foreign keys and `NOT NULL` are declared in the database, not left to the app.
 - The schema is created by an Alembic migration, never by hand.
 
-## The 12 tables
+## The tables
 
 | # | Table | What it holds | Relationships |
 |---|---|---|---|
@@ -28,6 +28,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 10 | points_ledger | Points earned. Append-only. | membership 1–many, submission 0..1–many, reverses another ledger row 0..1 |
 | 11 | notification | An alert for one membership. | membership 1–many |
 | 12 | audit_log | Who did what to which record, with before and after. | organization 1–many |
+| 13 | auth_session | A signed-in browser (SCRUM-13): `token_hash` (SHA-256, never the token), `last_seen_at`, `revoked_at`. | person 1–many. Unique on token_hash |
 
 ## Decisions
 
@@ -78,6 +79,7 @@ so if this grows it becomes a join table.
 erDiagram
     organization ||--o{ membership : "has"
     person ||--o{ membership : "joins orgs via"
+    person ||--o{ auth_session : "signs in as"
     organization ||--o{ team : "has"
     organization ||--o{ cohort : "has"
     organization ||--o{ track : "has"
@@ -213,5 +215,13 @@ erDiagram
         jsonb before "nullable"
         jsonb after "nullable"
         timestamptz created_at "NOT NULL"
+    }
+    auth_session {
+        bigint id PK
+        bigint person_id FK "NOT NULL"
+        text token_hash "NOT NULL, UNIQUE: SHA-256 of the cookie token"
+        timestamptz created_at "NOT NULL"
+        timestamptz last_seen_at "NOT NULL"
+        timestamptz revoked_at "nullable"
     }
 ```

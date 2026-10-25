@@ -57,10 +57,14 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # When the client starts calling the API, add a build-time variable here
-      # wired to byline-api. Static sites have no runtime environment, so the
-      # value must be baked in at build time (Vite reads VITE_* prefixed vars).
     routes:
+      # SCRUM-13: the client calls /api on its own origin and Render forwards
+      # it to the API. Same origin means the SameSite session cookie is sent
+      # and no CORS is needed. Must stay above the catch-all below. If the API
+      # service is recreated under a new URL, update this destination.
+      - type: rewrite
+        source: /api/*
+        destination: https://byline-api-mn90.onrender.com/*
       # React Router handles routing in the browser, so every path that is not
       # a real file has to be served index.html.
       - type: rewrite

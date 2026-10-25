@@ -18,7 +18,7 @@ from sqlalchemy.pool import StaticPool
 import ratelimit
 from db import get_db
 from main import app
-from models import Person
+from models import AuthSession, Person
 from routers.auth import INVALID_CREDENTIALS
 from security import hash_password
 
@@ -34,6 +34,8 @@ def client() -> Iterator[TestClient]:
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Person.__table__.create(engine)
+    # Success now starts a session (SCRUM-13), so its table has to exist too.
+    AuthSession.__table__.create(engine)
     factory = sessionmaker(bind=engine)
     with factory() as session:
         # SQLite does not auto-number a BigInteger primary key, so set it here.

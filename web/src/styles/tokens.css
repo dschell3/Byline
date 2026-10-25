@@ -27,6 +27,18 @@
   --status-overdue-fill: 250 223 221;
   --status-approved-text: 21 96 47;
   --status-approved-fill: 217 237 224;
+
+  /* The navy brand panel (P01 and other public pages). Navy in both themes, so dark mode does not redefine these. */
+  --navy: 15 29 51; /* #0F1D33 */
+  --navy-heading: 255 255 255;
+  --navy-body: 175 192 214; /* #AFC0D6 */
+  --navy-quote: 198 213 232; /* #C6D5E8 */
+  --navy-meta: 143 164 192; /* #8FA4C0 */
+  --navy-footer: 122 143 172; /* #7A8FAC */
+  --navy-rule: 44 72 112; /* #2C4870 */
+  --navy-bar: 62 95 140; /* #3E5F8C */
+  --navy-accent: 140 130 228; /* #8C82E4 */
+  --navy-check: 127 227 168; /* #7FE3A8 */
 }
 
 [data-theme='dark'] {
