@@ -102,14 +102,36 @@ The web app calls the API as `/api/...` on its own origin: Vite proxies it
 locally and a rewrite in `render.yaml` does it on Render. That is what lets
 a SameSite cookie travel without CORS.
 
-To get an account to try locally, with `DATABASE_URL` set and migrations
-applied:
+Accounts are created through invite links (below), not by hand.
+
+## Invites (SCRUM-11)
+
+A new person joins through a link. `invite` holds who is invited (email),
+what they join (organization, cohort, track, team, role), who sent it, and
+only the SHA-256 of the URL token, as with sessions.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /invites/{token}` | Public. `state` (`open`, `expired`, `used`, `revoked`), `email`, `role`, `expires_at`, `organization`, `cohort`, `track`, `invited_by` (name and email). 404 if no such link. Non-open states still answer, so the page can say who to ask for a new one. |
+| `POST /invites/{token}/accept` | Body `{"full_name", "password", "timezone"}`. Creates the person and the membership in one transaction, stamps `accepted_at`, starts a session and sets the cookie, returns 201 `{"id", "full_name"}`. 410 when expired, used or withdrawn; 409 when the email already has an account; 422 when the password is under 10 characters. |
+
+Invites last 30 days (`invites.INVITE_LIFETIME`). A link works once: the
+`accepted_at` stamp is a conditional update, so two submits cannot both win.
+An unknown `timezone` is stored as UTC; the profile page (SCRUM-17) fixes it.
+
+Until the admin screens exist (SCRUM-39, SCRUM-42), make an invite with the
+dev helper, with `DATABASE_URL` set and migrations applied. It creates the
+organization, cohort, track, team and inviter by name if they are missing,
+then prints the link once:
 
 ```bash
-python scripts/create_person.py you@example.com "Your Name" 'a password'
+python scripts/create_invite.py you@example.com \
+    --inviter lyric@example.com --inviter-name "Lyric James" \
+    --cohort "Autumn 2026 · Cohort 7" --starts 2026-09-28 --ends 2026-12-18 \
+    --track UX/UI --team Design --site http://localhost:5173
 ```
 
-That script is a dev helper only and goes away when the invite flow (SCRUM-11) lands.
+`--site` is where the web app runs; use the staging address to test there.
 
 ## Home screen (SCRUM-16)
 
@@ -181,6 +203,7 @@ runs, so import new model modules there as they are added.
 | `config.py` | Settings loaded from the environment with pydantic-settings |
 | `db.py` | SQLAlchemy engine, session factory and declarative `Base` |
 | `alembic.ini`, `alembic/` | Migration config and scripts |
+| `scripts/create_invite.py` | Dev helper: make an invite link (goes away with SCRUM-39/42) |
 | `tests/` | pytest suite |
 | `requirements.txt` | Pinned dependencies |
 | `requirements-dev.txt` | Dev tools on top of the runtime pins (ruff) |

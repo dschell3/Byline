@@ -1,4 +1,4 @@
-"""SQLAlchemy models for the Byline tables (SCRUM-68, auth_session from SCRUM-13).
+"""SQLAlchemy models for the Byline tables (SCRUM-68; auth_session SCRUM-13; invite SCRUM-11).
 
 The source of truth is docs/erd.md. Every table follows its rules:
 bigint ids, TIMESTAMPTZ everywhere, foreign keys and NOT NULL declared here
@@ -49,7 +49,9 @@ class Person(Base):
 
     __tablename__ = "person"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    # SQLite only auto-numbers a plain INTEGER primary key; Postgres keeps bigint.
+    # Rows are created at runtime by the invite flow (SCRUM-11), so tests need this.
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     full_name: Mapped[str] = mapped_column(Text, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
@@ -121,7 +123,7 @@ class Membership(Base):
         CheckConstraint("role IN ('member', 'supervisor', 'admin')", name="ck_membership_role"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
     person_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("person.id"), nullable=False)
     organization_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("organization.id"), nullable=False
@@ -299,3 +301,40 @@ class AuthSession(Base):
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )
     revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+
+
+class Invite(Base):
+    """A link that lets one person join one organization (SCRUM-11).
+
+    The URL carries a random token; only its SHA-256 is stored, as with
+    ``auth_session``. Accepting creates the person and the membership in
+    one step and stamps ``accepted_at``, so a link works exactly once.
+    ``revoked_at`` lets an admin withdraw an invite before it is used
+    (SCRUM-39). Expiry is decided by ``expires_at``, set when the row is
+    created.
+    """
+
+    __tablename__ = "invite"
+    __table_args__ = (
+        CheckConstraint("role IN ('member', 'supervisor', 'admin')", name="ck_invite_role"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("organization.id"), nullable=False
+    )
+    invited_by_membership_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("membership.id"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, server_default="member")
+    team_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("team.id"))
+    cohort_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("cohort.id"))
+    track_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("track.id"))
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMPTZ, nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+    revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
