@@ -47,7 +47,7 @@ export function todayIn(timeZone: string, now: Date = new Date()): string {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function daysBetween(from: string, to: string): number {
+export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 }
 

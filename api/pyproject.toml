@@ -15,7 +15,7 @@ extend-exclude = [".venv", "alembic/versions"]
 select = ["E", "W", "F", "I", "N", "ANN"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["assignments", "config", "db", "main", "models", "ratelimit", "routers", "security", "sessions", "tests"]
+known-first-party = ["assignments", "config", "db", "main", "models", "ratelimit", "routers", "security", "sessions", "tests", "work"]
 # The local alembic/ folder makes ruff guess that the alembic package is
 # first-party. It is not; keep it with the other third-party imports.
 known-third-party = ["alembic"]

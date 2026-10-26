@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import assignments
+import work
 from db import get_db
 from models import Cohort, Membership, Organization, Person, Track
 from sessions import CurrentUser, current_user
@@ -112,3 +113,17 @@ def home(
         else None,
         has_work=assignments.has_assigned_work(db, member),
     )
+
+
+@router.get("/work", response_model=work.WorkResponse)
+def my_work(
+    response: Response,
+    user: CurrentUser = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> work.WorkResponse:
+    """P10 My Work: the same data as GET /members/{id}/work, for your own membership."""
+    member = _home_membership(db, user.person.id)
+    if member is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NO_MEMBERSHIP)
+    response.headers["Cache-Control"] = "no-store"
+    return work.for_member(db, member)
