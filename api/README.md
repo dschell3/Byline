@@ -111,6 +111,20 @@ python scripts/create_person.py you@example.com "Your Name" 'a password'
 
 That script is a dev helper only and goes away when the invite flow (SCRUM-11) lands.
 
+## Home screen (SCRUM-16)
+
+`GET /me/home` (signed in) returns what the first-run screen P11 shows:
+`full_name`, `timezone`, `organization`, `cohort` (name, `starts_on`,
+`ends_on`), `track` (name, `onboarding_pack_url`), `supervisor` (the active
+supervisor on the member's team: name and email) and `has_work`. 404 when
+the person has no active membership.
+
+`has_work` comes from `assignments.py`, the single rule for who an
+assignment reaches: picked by `recipient_membership_ids`, or every one of
+team / cohort / track that the assignment names matches the member. Same
+organization only. My Work (SCRUM-14) should use `assigned_to()` from there
+rather than writing its own query.
+
 ## Tests
 
 ```bash
