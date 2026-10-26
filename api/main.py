@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from routers import auth, me, members, invites
+from routers import auth, invites, me, members
 
 app = FastAPI(title="OverClock API")
 app.include_router(auth.router)
