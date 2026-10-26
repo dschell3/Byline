@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13 and `invite` from SCRUM-11, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -29,6 +29,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 11 | notification | An alert for one membership. | membership 1–many |
 | 12 | audit_log | Who did what to which record, with before and after. | organization 1–many |
 | 13 | auth_session | A signed-in browser (SCRUM-13): `token_hash` (SHA-256, never the token), `last_seen_at`, `revoked_at`. | person 1–many. Unique on token_hash |
+| 14 | invite | A link to join one organization (SCRUM-11): the invitee's `email`, the `role`, cohort, track and team they join, who sent it, `token_hash`, `expires_at`, `accepted_at`, `revoked_at`. | organization 1–many, sent by a membership. Unique on token_hash |
 
 ## Decisions
 
@@ -43,6 +44,8 @@ The assistant only writes draft reviews (`is_final = false`). Only a person writ
 
 **Public byline consent.** `public_byline_consent` (default false) and `public_byline_consent_at` record consent explicitly.
 Revoking sets it back to false. `public_slug` alone no longer implies consent.
+
+**Invites are single-use and hashed.** The invite URL carries a random token and `invite.token_hash` holds only its SHA-256, the same pattern as `auth_session`. Accepting sets `accepted_at`; a second visit sees the used state. `expires_at` is set on creation (30 days, `invites.INVITE_LIFETIME`) and `revoked_at` lets an admin withdraw one (SCRUM-39). Accepting creates `person` and `membership` in one transaction, so there is never an account without a place in an organization.
 
 **Points ledger is append-only.** Rows are never updated or deleted. A correction writes a new row with a negative
 `amount` and `reverses_ledger_id` pointing at the row it reverses (SCRUM-69). A member's total is `SUM(amount)`.
@@ -99,6 +102,8 @@ erDiagram
     points_ledger |o--o| points_ledger : "reverses"
     membership ||--o{ notification : "receives"
     organization ||--o{ audit_log : "records"
+    organization ||--o{ invite : "sends"
+    membership ||--o{ invite : "sent by"
 
     organization {
         bigint id PK
@@ -223,5 +228,20 @@ erDiagram
         timestamptz created_at "NOT NULL"
         timestamptz last_seen_at "NOT NULL"
         timestamptz revoked_at "nullable"
+    }
+    invite {
+        bigint id PK
+        bigint organization_id FK "NOT NULL"
+        bigint invited_by_membership_id FK "NOT NULL"
+        text email "NOT NULL"
+        text role "NOT NULL: member | supervisor | admin, default member"
+        bigint team_id FK "nullable"
+        bigint cohort_id FK "nullable"
+        bigint track_id FK "nullable"
+        text token_hash "NOT NULL, UNIQUE: SHA-256 of the URL token"
+        timestamptz expires_at "NOT NULL"
+        timestamptz accepted_at "nullable, set once"
+        timestamptz revoked_at "nullable"
+        timestamptz created_at "NOT NULL"
     }
 ```
