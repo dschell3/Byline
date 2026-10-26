@@ -41,3 +41,8 @@ def assigned_to(member: Membership) -> ColumnElement[bool]:
 def has_assigned_work(db: Session, member: Membership) -> bool:
     """True once anything at all has been assigned to ``member``."""
     return bool(db.scalar(select(exists().where(assigned_to(member)))))
+
+
+def assignments_for(db: Session, member: Membership) -> list[Assignment]:
+    """Every assignment that reaches ``member`` (My Work, SCRUM-14)."""
+    return list(db.scalars(select(Assignment).where(assigned_to(member))))

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Card } from '../components/ui/Card';
+import MyWork from './MyWork';
 import {
   cohortStage,
   dateRange,
@@ -14,7 +15,7 @@ import {
 } from '../lib/home';
 
 // "/" for a member. SCRUM-16: until anything is assigned this is the first-run screen (P11,
-// X11 on phones); once work exists it gives way to My Work (P10), which SCRUM-14 builds.
+// X11 on phones); once work exists it gives way to My Work (P10, SCRUM-14).
 
 type State = { status: 'loading' } | { status: 'ready'; home: Home | null } | { status: 'error' };
 
@@ -271,16 +272,6 @@ function FirstRun({ home }: { home: Home }) {
   );
 }
 
-// Placeholder until SCRUM-14 lands P10. Kept here so the hand-over point is obvious.
-function MyWorkPlaceholder() {
-  return (
-    <main className="flex-1 px-4 py-10 lg:px-14">
-      <h1 className="m-0 text-page-title">My work</h1>
-      <p className="m-0 mt-2 text-body text-ink-body">Your assignments will be listed here.</p>
-    </main>
-  );
-}
-
 export default function HomePage() {
   const [state, setState] = useState<State>({ status: 'loading' });
 
@@ -312,5 +303,9 @@ export default function HomePage() {
       </main>
     );
   }
-  return state.home.has_work ? <MyWorkPlaceholder /> : <FirstRun home={state.home} />;
+  return state.home.has_work ? (
+    <MyWork timeZone={state.home.timezone} />
+  ) : (
+    <FirstRun home={state.home} />
+  );
 }
