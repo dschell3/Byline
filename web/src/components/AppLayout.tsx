@@ -107,6 +107,13 @@ export default function AppLayout() {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-line bg-surface p-1 shadow-lg">
+                  <NavLink
+                    to="/me"
+                    onClick={() => setMenuOpen(false)}
+                    className="block w-full rounded-md px-3 py-2 text-left text-[14px] font-medium text-ink no-underline hover:bg-surface-recessed"
+                  >
+                    Profile
+                  </NavLink>
                   <button
                     type="button"
                     onClick={handleSignOut}
@@ -135,6 +142,15 @@ export default function AppLayout() {
                 {link.label}
               </NavLink>
             ))}
+            <NavLink
+              to="/me"
+              onClick={() => setMenuOpen(false)}
+              className={({ isActive }) =>
+                `block py-3 text-[15px] ${isActive ? 'font-semibold text-ink' : 'font-medium text-ink-body'}`
+              }
+            >
+              Profile
+            </NavLink>
             <button
               type="button"
               onClick={handleSignOut}
