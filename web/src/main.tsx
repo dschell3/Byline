@@ -8,6 +8,8 @@ import HomePage from './pages/HomePage.tsx';
 import InvitePage from './pages/InvitePage.tsx';
 import SignInPage from './pages/SignInPage.tsx';
 import TokensPage from './pages/TokensPage.tsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -20,6 +22,8 @@ createRoot(document.getElementById('root')!).render(
           </Route>
         </Route>
         <Route path="/signin" element={<SignInPage />} />
+        <Route path="/forgot" element={<ForgotPasswordPage />} />
+        <Route path="/reset/:token" element={<ResetPasswordPage />} />
         {/* P05: a new intern's invite link (SCRUM-11). Public; signs the browser in on success. */}
         <Route path="/invite/:token" element={<InvitePage />} />
         {/* Linked from P05. Placeholders until the legal copy has a card. */}
