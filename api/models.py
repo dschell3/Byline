@@ -48,6 +48,12 @@ class Person(Base):
     """Someone who can sign in. Roles live on membership, not here."""
 
     __tablename__ = "person"
+    __table_args__ = (
+        CheckConstraint(
+            "contact_preference IN ('email', 'discord', 'phone')",
+            name="ck_person_contact_preference",
+        ),
+    )
 
     # SQLite only auto-numbers a plain INTEGER primary key; Postgres keeps bigint.
     # Rows are created at runtime by the invite flow (SCRUM-11), so tests need this.
@@ -61,6 +67,17 @@ class Person(Base):
         Boolean, nullable=False, server_default=text("false")
     )
     email_bounced_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+    # Profile (SCRUM-17). The photo is a URL until file storage (R2) arrives.
+    photo_url: Mapped[str | None] = mapped_column(Text)
+    contact_preference: Mapped[str] = mapped_column(Text, nullable=False, server_default="email")
+    contact_detail: Mapped[str | None] = mapped_column(Text)
+    email_assignments: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    email_reminders: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    email_digest: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )

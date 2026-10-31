@@ -6,6 +6,7 @@ import AppLayout from './components/AppLayout.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
 import HomePage from './pages/HomePage.tsx';
 import InvitePage from './pages/InvitePage.tsx';
+import ProfilePage from './pages/ProfilePage.tsx';
 import SignInPage from './pages/SignInPage.tsx';
 import TokensPage from './pages/TokensPage.tsx';
 
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/me" element={<ProfilePage />} />
           </Route>
         </Route>
         <Route path="/signin" element={<SignInPage />} />
