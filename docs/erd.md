@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13 and `invite` from SCRUM-11, with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11 and `email_verification` from SCRUM-12, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -30,6 +30,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 12 | audit_log | Who did what to which record, with before and after. | organization 1–many |
 | 13 | auth_session | A signed-in browser (SCRUM-13): `token_hash` (SHA-256, never the token), `last_seen_at`, `revoked_at`. | person 1–many. Unique on token_hash |
 | 14 | invite | A link to join one organization (SCRUM-11): the invitee's `email`, the `role`, cohort, track and team they join, who sent it, `token_hash`, `expires_at`, `accepted_at`, `revoked_at`. | organization 1–many, sent by a membership. Unique on token_hash |
+| 15 | email_verification | A link that confirms a person owns their email (SCRUM-12): the `person_id`, the `email` it was sent to, `token_hash`, `expires_at` (24 hours), `used_at`. | person 1–many. Unique on token_hash |
 
 ## Decisions
 
@@ -46,6 +47,8 @@ The assistant only writes draft reviews (`is_final = false`). Only a person writ
 Revoking sets it back to false. `public_slug` alone no longer implies consent.
 
 **Invites are single-use and hashed.** The invite URL carries a random token and `invite.token_hash` holds only its SHA-256, the same pattern as `auth_session`. Accepting sets `accepted_at`; a second visit sees the used state. `expires_at` is set on creation (30 days, `invites.INVITE_LIFETIME`) and `revoked_at` lets an admin withdraw one (SCRUM-39). Accepting creates `person` and `membership` in one transaction, so there is never an account without a place in an organization.
+
+**Verification links are single-use, hashed and short.** `email_verification.token_hash` holds only the SHA-256 of the URL token, like invites and sessions. Using a link sets `used_at` (a conditional update, so two clicks cannot both win) and stamps `person.email_verified_at`. Links expire 24 hours after creation (`verifications.VERIFICATION_LIFETIME`, from the SCRUM-12 card). `email` records the address the link was sent to, so a link stops counting once the person's email changes.
 
 **Points ledger is append-only.** Rows are never updated or deleted. A correction writes a new row with a negative
 `amount` and `reverses_ledger_id` pointing at the row it reverses (SCRUM-69). A member's total is `SUM(amount)`.
@@ -104,6 +107,7 @@ erDiagram
     organization ||--o{ audit_log : "records"
     organization ||--o{ invite : "sends"
     membership ||--o{ invite : "sent by"
+    person ||--o{ email_verification : "confirms"
 
     organization {
         bigint id PK
@@ -119,6 +123,7 @@ erDiagram
         text timezone "NOT NULL, IANA, default UTC"
         boolean email_unreachable "NOT NULL, default false"
         timestamptz email_bounced_at "nullable"
+        timestamptz email_verified_at "nullable, set by a verification link"
         text photo_url "nullable, https URL until R2 upload"
         text contact_preference "NOT NULL: email | discord | phone, default email"
         text contact_detail "nullable, handle or number"
@@ -248,6 +253,15 @@ erDiagram
         timestamptz expires_at "NOT NULL"
         timestamptz accepted_at "nullable, set once"
         timestamptz revoked_at "nullable"
+        timestamptz created_at "NOT NULL"
+    }
+    email_verification {
+        bigint id PK
+        bigint person_id FK "NOT NULL"
+        text email "NOT NULL: the address the link was sent to"
+        text token_hash "NOT NULL, UNIQUE: SHA-256 of the URL token"
+        timestamptz expires_at "NOT NULL: 24 hours after created_at"
+        timestamptz used_at "nullable, set once"
         timestamptz created_at "NOT NULL"
     }
 ```

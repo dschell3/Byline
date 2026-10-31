@@ -22,6 +22,7 @@ EXPECTED_TABLES = {
     "audit_log",
     "auth_session",
     "invite",
+    "email_verification",
 }
 
 

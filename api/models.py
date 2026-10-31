@@ -67,6 +67,8 @@ class Person(Base):
         Boolean, nullable=False, server_default=text("false")
     )
     email_bounced_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+    # Stamped when the person clicks a verification link (SCRUM-12). Null means unconfirmed.
+    email_verified_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     # Profile (SCRUM-17). The photo is a URL until file storage (R2) arrives.
     photo_url: Mapped[str | None] = mapped_column(Text)
     contact_preference: Mapped[str] = mapped_column(Text, nullable=False, server_default="email")
@@ -352,6 +354,29 @@ class Invite(Base):
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMPTZ, nullable=False)
     accepted_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+
+
+class EmailVerification(Base):
+    """A link that confirms a person owns an email address (SCRUM-12).
+
+    As with ``invite`` and ``auth_session``, the URL carries a random token
+    and only its SHA-256 is stored. ``used_at`` makes a link single-use and
+    ``expires_at`` (24 hours after creation) ends it. ``email`` is the address
+    the link was sent to, so a link stops counting if the person's email has
+    changed since.
+    """
+
+    __tablename__ = "email_verification"
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    person_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("person.id"), nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMPTZ, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )
