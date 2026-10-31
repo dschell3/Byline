@@ -355,3 +355,39 @@ class Invite(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )
+
+
+class PasswordResetToken(Base):
+    """A secure, single-use password reset link (SCRUM-10).
+
+    Only the token hash is stored. The original token is sent to
+    the user's email and expires one hour after creation.
+    """
+
+    __tablename__ = "password_reset_token"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+    )
+    person_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("person.id"),
+        nullable=False,
+        index=True,
+    )
+    token_hash: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        unique=True,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ,
+        nullable=False,
+    )
+    used_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ,
+        nullable=False,
+        server_default=func.now(),
+    )
