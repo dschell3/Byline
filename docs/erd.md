@@ -119,6 +119,12 @@ erDiagram
         text timezone "NOT NULL, IANA, default UTC"
         boolean email_unreachable "NOT NULL, default false"
         timestamptz email_bounced_at "nullable"
+        text photo_url "nullable, https URL until R2 upload"
+        text contact_preference "NOT NULL: email | discord | phone, default email"
+        text contact_detail "nullable, handle or number"
+        boolean email_assignments "NOT NULL, default true"
+        boolean email_reminders "NOT NULL, default true"
+        boolean email_digest "NOT NULL, default true"
         timestamptz created_at "NOT NULL"
     }
     membership {

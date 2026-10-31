@@ -147,6 +147,37 @@ team / cohort / track that the assignment names matches the member. Same
 organization only. My Work (SCRUM-14) should use `assigned_to()` from there
 rather than writing its own query.
 
+## Profile (SCRUM-17)
+
+The profile page (P18) reads and writes the signed-in person's own settings.
+Both endpoints need a session, send `Cache-Control: no-store`, and answer 404
+(the same message as `/me/home`) when the person has no active membership,
+because byline consent lives on `membership`.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /me/profile` | 200 with `full_name`, `email`, `photo_url`, `timezone`, `contact_preference`, `contact_detail`, `email_assignments`, `email_reminders`, `email_digest`, `public_byline_consent` and `public_byline_consent_at`. |
+| `PATCH /me/profile` | Takes any subset of the fields below and returns 200 with the full profile after the change, in one transaction. 422 when any field is invalid, and then nothing is changed. |
+
+| Field | Rule |
+| --- | --- |
+| `full_name` | 1 to 200 characters after trimming. |
+| `photo_url` | An `https://` link of up to 2048 characters, or `null` to clear it. A link for now; uploads arrive with file storage (SCRUM-19, SCRUM-20). |
+| `timezone` | Must be an IANA name known to `zoneinfo.available_timezones()`, else 422. Unlike the invite flow, it never falls back to UTC. |
+| `contact_preference` | `email`, `discord` or `phone`. Default `email`. |
+| `contact_detail` | Up to 200 characters (a handle or number), or `null`. |
+| `email_assignments`, `email_reminders`, `email_digest` | Booleans, all on by default. Assignments covers work assigned, reviewed and approved; reminders covers due soon; digest is the weekly summary. |
+| `public_byline_consent` | Boolean, off by default. Turning it on stamps `public_byline_consent_at` with the current UTC time. Turning it off clears the flag and keeps the stamp as history. Sending `true` again does not move the stamp. |
+
+Fields left out of a PATCH are not touched, and the ones above cannot be sent
+as `null` except `photo_url` and `contact_detail`. Unknown fields are ignored,
+`email` included: changing an email needs the verification flow (SCRUM-12).
+Account emails (sign-in, password reset, invites, verification) have no
+setting here and always send.
+
+The consent columns are the ones on `membership` that the public byline page
+(P16, SCRUM-37) reads, which is what keeps the two controls in sync.
+
 ## Tests
 
 ```bash
