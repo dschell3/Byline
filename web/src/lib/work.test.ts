@@ -40,3 +40,42 @@ describe('pointsLabel', () => {
     expect(pointsLabel(10)).toBe('10 pts');
   });
 });
+
+describe('one deadline, read by people in different timezones (SCRUM-15)', () => {
+  // 03:00 UTC on Fri 30 Oct is 08:30 that day in Mumbai and 20:00 on Thu 29 Oct in Los Angeles.
+  const DEADLINE = '2026-10-30T03:00:00Z';
+
+  test('a member in IST and a supervisor in PST read the same instant on their own calendars', () => {
+    // 10:00 UTC on Thu 29 Oct: 15:30 that day in Mumbai, 03:00 that day in Los Angeles.
+    const now = new Date('2026-10-29T10:00:00Z');
+    expect(dueLabel(DEADLINE, 'Asia/Kolkata', now)).toEqual({
+      date: 'Fri 30 Oct',
+      relative: 'tomorrow',
+    });
+    expect(dueLabel(DEADLINE, 'America/Los_Angeles', now)).toEqual({
+      date: 'Thu 29 Oct',
+      relative: 'today',
+    });
+  });
+
+  test('the same deadline can be late on one calendar and still today on another', () => {
+    // 12:00 UTC on Fri 30 Oct is 17:30 that day in Mumbai and 05:00 that day in Los Angeles.
+    const noon = '2026-10-30T12:00:00Z';
+    // 20:00 UTC on Fri 30 Oct: already 01:30 on Sat 31 Oct in Mumbai, 13:00 on Fri in Los Angeles.
+    const now = new Date('2026-10-30T20:00:00Z');
+    expect(dueLabel(noon, 'Asia/Kolkata', now)).toEqual({
+      date: 'Fri 30 Oct',
+      relative: 'yesterday',
+    });
+    expect(dueLabel(noon, 'America/Los_Angeles', now)).toEqual({
+      date: 'Fri 30 Oct',
+      relative: 'today',
+    });
+  });
+
+  test('the same person changing zone sees the same instant on a different calendar', () => {
+    const now = new Date('2026-10-29T10:00:00Z');
+    expect(dueLabel(DEADLINE, 'Asia/Kolkata', now).date).toBe('Fri 30 Oct');
+    expect(dueLabel(DEADLINE, 'Pacific/Pago_Pago', now).date).toBe('Thu 29 Oct');
+  });
+});
