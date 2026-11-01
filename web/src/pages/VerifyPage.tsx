@@ -84,7 +84,7 @@ function Confirmed({ verification }: { verification: Verification }) {
       >
         <CheckIcon />
         <div className="flex flex-col gap-[5px]">
-          <p className="m-0 break-all text-[14px] font-semibold text-status-approved-text">
+          <p className="m-0 [overflow-wrap:anywhere] text-[14px] font-semibold text-status-approved-text">
             {verification.email} is verified
           </p>
           <p className="m-0 text-[13px] leading-5 text-ink-body">
@@ -127,14 +127,19 @@ function Expired({ verification, token }: { verification: Verification; token: s
       <Heading>This link has expired</Heading>
       <StateCard rule="border-l-status-changes-text" title="Nothing is lost">
         Verification links last {LINK_LIFETIME}. We can send a new one to{' '}
-        <span className="break-all font-semibold text-ink">{verification.email}</span>.
+        <span className="[overflow-wrap:anywhere] font-semibold text-ink">
+          {verification.email}
+        </span>
+        .
       </StateCard>
       {problem && <ProblemNotice problem={problem} />}
       {sent ? (
         <p role="status" className="m-0 text-body text-ink-body">
           A new link is on its way to{' '}
-          <span className="break-all font-semibold text-ink">{verification.email}</span>. It lasts{' '}
-          {LINK_LIFETIME}.
+          <span className="[overflow-wrap:anywhere] font-semibold text-ink">
+            {verification.email}
+          </span>
+          . It lasts {LINK_LIFETIME}.
         </p>
       ) : (
         <form onSubmit={sendNewLink}>
@@ -153,7 +158,7 @@ function AlreadyVerified({ verification }: { verification: Verification }) {
     <>
       <Heading>Already verified</Heading>
       <StateCard rule="border-l-status-due-soon-text" title="Nothing more to do here">
-        <span className="break-all">{verification.email}</span> was confirmed{on}.
+        <span className="[overflow-wrap:anywhere]">{verification.email}</span> was confirmed{on}.
       </StateCard>
       <Link to="/signin" className={PRIMARY_LINK}>
         Sign in
