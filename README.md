@@ -108,3 +108,26 @@ Every merge to `main` deploys both services automatically; the stack is declared
 ## License
 
 TBD
+
+## Password recovery (SCRUM-10)
+
+- POST /auth/forgot-password requests a reset email.
+- GET /auth/reset-password/{token} returns the link state.
+- POST /auth/reset-password/{token} changes the password.
+
+Reset links expire after one hour, are single-use, and store
+only a SHA-256 token hash. A successful reset revokes existing
+login sessions.
+
+The forgot-password endpoint returns identical confirmation
+for known and unknown email addresses. Requests are limited
+per email and per IP.
+
+Email delivery uses SMTP configured with the RESET_SMTP_*
+environment variables, RESET_FROM_EMAIL, and
+RESET_WEB_BASE_URL. Until these are configured, the user-facing
+confirmation works but no reset email is delivered.
+
+SMTP tests use a mocked transport. A successful real-provider
+delivery test is required before considering email recovery
+production-ready.
