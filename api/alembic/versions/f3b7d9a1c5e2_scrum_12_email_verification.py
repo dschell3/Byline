@@ -1,7 +1,7 @@
 """SCRUM-12 email verification
 
 Revision ID: f3b7d9a1c5e2
-Revises: e5b8a2c4d6f1
+Revises: 595438037200
 Create Date: 2026-10-31
 
 Email verification links. As with invites and sessions, the URL carries a
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'f3b7d9a1c5e2'
-down_revision: Union[str, Sequence[str], None] = 'e5b8a2c4d6f1'
+down_revision: Union[str, Sequence[str], None] = '595438037200'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

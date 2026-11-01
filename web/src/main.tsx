@@ -9,6 +9,8 @@ import InvitePage from './pages/InvitePage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import SignInPage from './pages/SignInPage.tsx';
 import TokensPage from './pages/TokensPage.tsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.tsx';
 import VerifyPage from './pages/VerifyPage.tsx';
 
 createRoot(document.getElementById('root')!).render(
@@ -23,6 +25,8 @@ createRoot(document.getElementById('root')!).render(
           </Route>
         </Route>
         <Route path="/signin" element={<SignInPage />} />
+        <Route path="/forgot" element={<ForgotPasswordPage />} />
+        <Route path="/reset/:token" element={<ResetPasswordPage />} />
         {/* P05: a new intern's invite link (SCRUM-11). Public; signs the browser in on success. */}
         <Route path="/invite/:token" element={<InvitePage />} />
         {/* P04: an email verification link (SCRUM-12). Public; the link may be opened signed out. */}
