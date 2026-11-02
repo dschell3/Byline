@@ -13,6 +13,7 @@ import {
   todayIn,
   type Home,
 } from '../lib/home';
+import { viewerTimeZone } from '../lib/time';
 
 // "/" for a member. SCRUM-16: until anything is assigned this is the first-run screen (P11,
 // X11 on phones); once work exists it gives way to My Work (P10, SCRUM-14).
@@ -278,7 +279,14 @@ export default function HomePage() {
   useEffect(() => {
     let current = true;
     fetchHome()
-      .then((home) => current && setState({ status: 'ready', home }))
+      .then(
+        (home) =>
+          current &&
+          setState({
+            status: 'ready',
+            home: home && { ...home, timezone: viewerTimeZone(home.timezone) },
+          }),
+      )
       .catch(() => current && setState({ status: 'error' }));
     return () => {
       current = false;

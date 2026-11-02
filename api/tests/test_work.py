@@ -270,3 +270,33 @@ def test_me_work_never_shows_someone_elses_work(client: TestClient) -> None:
 def test_someone_with_no_membership_gets_404_from_me_work(client: TestClient) -> None:
     sign_in(client, "no.org@example.com")
     assert client.get("/me/work").status_code == 404
+
+
+def test_member_in_ist_and_supervisor_in_pst_agree_on_overdue(
+    client: TestClient, factory: sessionmaker[Session], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SCRUM-15: late is decided on the server in UTC, so whoever looks sees the same answer."""
+    due = datetime.now(UTC) - timedelta(hours=1)
+    with factory() as db:
+        db.get(Person, 2).timezone = "Asia/Kolkata"  # Bola, the member
+        db.get(Person, 3).timezone = "America/Los_Angeles"  # Marguerite, the supervisor
+        db.commit()
+
+    def one_late_row(db: Session, member: Membership) -> list[Row]:
+        return [Row(1, "Competitor audit", "Marguerite Ellis", due, 10, True, None)]
+
+    monkeypatch.setattr(work, "load_rows", one_late_row)
+
+    def overdue_items(response: object) -> list[dict]:
+        groups = response.json()["groups"]  # type: ignore[attr-defined]
+        return next(g["items"] for g in groups if g["key"] == "overdue")
+
+    sign_in(client, "bola@example.com")
+    mine = overdue_items(client.get("/me/work"))
+    sign_in(client, "marguerite@example.com")
+    theirs = overdue_items(client.get("/members/2/work"))
+
+    assert [i["title"] for i in mine] == ["Competitor audit"]
+    assert [i["title"] for i in theirs] == ["Competitor audit"]
+    assert mine[0]["due_at"] == theirs[0]["due_at"]
+    assert datetime.fromisoformat(mine[0]["due_at"]) == due

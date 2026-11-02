@@ -22,7 +22,14 @@ function Row({ item, timeZone }: { item: WorkItem; timeZone: string }) {
       <div className="min-w-0">
         <p className="m-0 text-card-title text-ink">{item.title}</p>
         <p className="m-0 mt-0.5 text-meta text-ink-meta">
-          Set by {item.set_by} · {due.date}
+          Set by {item.set_by} ·{' '}
+          {item.due_at ? (
+            <time dateTime={item.due_at} title={due.full}>
+              {due.date}, {due.time}
+            </time>
+          ) : (
+            due.date
+          )}
           {due.relative && ` (${due.relative})`} · {pointsLabel(item.points)}
         </p>
       </div>

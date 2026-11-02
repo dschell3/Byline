@@ -147,6 +147,10 @@ team / cohort / track that the assignment names matches the member. Same
 organization only. My Work (SCRUM-14) should use `assigned_to()` from there
 rather than writing its own query.
 
+## Time (SCRUM-15)
+
+Every timestamp is stored and compared in UTC. Whether work is overdue is decided on the server by `work.status_of`, which compares `due_at` with the current UTC time, so two people looking at the same assignment never disagree about whether it is late. The web app converts an instant to the viewer's timezone only when it renders, in `web/src/lib/time.ts`: the profile timezone (P18), else the browser's, else UTC. Relative wording ("in 3 hours", "2 days ago") is worked out in the browser from the viewer's own clock. Calendar dates such as a cohort's start and end are not instants and are not converted.
+
 ## Profile (SCRUM-17)
 
 The profile page (P18) reads and writes the signed-in person's own settings.
