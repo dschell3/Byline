@@ -178,6 +178,30 @@ setting here and always send.
 The consent columns are the ones on `membership` that the public byline page
 (P16, SCRUM-37) reads, which is what keeps the two controls in sync.
 
+## Email verification (SCRUM-12)
+
+A verification link confirms a person owns their email address. Like
+invites, the URL carries a random token and `email_verification` stores only
+its SHA-256. Opening `/verify/{token}` (P04) lands on one of three screens.
+
+| Endpoint | Result |
+| --- | --- |
+| `POST /verify/{token}` | Public. Uses the link and returns `{"state", "email", "verified_at"}`. `state` is `verified` (the link worked; `person.email_verified_at` is stamped), `expired` (24 hours have passed, or the email has changed since; `verified_at` is null) or `already_verified` (used before, or the address was confirmed another way). 404 if no such link. A POST so a mail scanner that prefetches the link cannot use it up. |
+| `POST /verify/{token}/resend` | Public. After an expired link, sends a new one to the person's current email and returns 202 `{"email"}`. Only one live link at a time, so repeat clicks send nothing new. 409 when the link is not in the expired state. |
+
+Links last 24 hours (`verifications.VERIFICATION_LIFETIME`) and work once:
+`used_at` is a conditional update, as with invites.
+
+There is no email service yet. `verifications.deliver` logs the link
+(`SITE_URL` sets its origin, default `http://localhost:5173`); the
+notifications work replaces it with a real send. To test the three screens,
+make a link for an existing person:
+
+```bash
+python scripts/create_verification.py you@example.com            # confirmed, then already verified
+python scripts/create_verification.py you@example.com --expired  # expired
+```
+
 ## Tests
 
 ```bash
