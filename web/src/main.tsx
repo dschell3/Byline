@@ -11,6 +11,7 @@ import SignInPage from './pages/SignInPage.tsx';
 import TokensPage from './pages/TokensPage.tsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.tsx';
+import VerifyPage from './pages/VerifyPage.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -28,6 +29,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/reset/:token" element={<ResetPasswordPage />} />
         {/* P05: a new intern's invite link (SCRUM-11). Public; signs the browser in on success. */}
         <Route path="/invite/:token" element={<InvitePage />} />
+        {/* P04: an email verification link (SCRUM-12). Public; the link may be opened signed out. */}
+        <Route path="/verify/:token" element={<VerifyPage />} />
         {/* Linked from P05. Placeholders until the legal copy has a card. */}
         <Route path="/terms" element={<p className="p-8 text-xl">Terms (placeholder)</p>} />
         <Route

@@ -3,15 +3,16 @@ import { BylineMark } from './BylineMark';
 
 // The navy brand panel on the public pages (P01 sign-in, P05 invite), from the Figma frames.
 // Navy in both themes. Each page passes its own copy; the mark, lines and illustration are shared.
+// The quote is optional: P04 verify has none.
 type Props = {
   eyebrow: string;
   heading: ReactNode;
   body: ReactNode;
-  quote: string;
-  quoteBy: string;
+  quote?: string;
+  quoteBy?: string;
 };
 
-export function BrandPanel({ eyebrow, heading, body, quote, quoteBy }: Props) {
+export function BrandPanel({ eyebrow, heading, body, quote = '', quoteBy = '' }: Props) {
   return (
     <aside className="hidden flex-1 items-center py-8 pr-8 lg:flex">
       <div className="ruled-navy relative flex h-full max-h-[856px] w-full max-w-[600px] flex-col justify-between overflow-hidden rounded-[18px] bg-navy px-11 py-10 shadow-[0_20px_50px_rgba(15,29,51,0.18)]">
@@ -24,10 +25,14 @@ export function BrandPanel({ eyebrow, heading, body, quote, quoteBy }: Props) {
             {heading}
           </h2>
           <p className="m-0 max-w-[420px] text-[15px] leading-6 text-navy-body">{body}</p>
-          <blockquote className="m-0 mt-1 border-l-2 border-navy-accent pl-4">
-            <p className="m-0 text-[14px] italic leading-[22px] text-navy-quote">{quote}</p>
-            <p className="m-0 mt-2 text-meta font-normal text-navy-meta">— {quoteBy}</p>
-          </blockquote>
+          {quote && (
+            <blockquote className="m-0 mt-1 border-l-2 border-navy-accent pl-4">
+              <p className="m-0 text-[14px] italic leading-[22px] text-navy-quote">{quote}</p>
+              {quoteBy && (
+                <p className="m-0 mt-2 text-meta font-normal text-navy-meta">— {quoteBy}</p>
+              )}
+            </blockquote>
+          )}
         </div>
 
         <svg

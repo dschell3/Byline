@@ -23,6 +23,7 @@ EXPECTED_TABLES = {
     "auth_session",
     "invite",
     "password_reset_token",
+    "email_verification",
 }
 
 
