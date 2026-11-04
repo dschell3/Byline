@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, HTTPException, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from db import get_db
@@ -33,6 +33,8 @@ from models import AuthSession, Membership, Person
 COOKIE_NAME = "byline_session"
 IDLE_TIMEOUT = timedelta(hours=2)
 ABSOLUTE_TIMEOUT = timedelta(days=30)  # the "expired after 30 days" in Figma D06
+# Ended sessions stay this long, so a recent sign-out can still be looked into.
+HOW_LONG_TO_KEEP_ENDED_SESSIONS = timedelta(days=7)
 
 SIGN_IN_REQUIRED = "Your session has ended. Sign in to continue."
 NOT_ALLOWED = "You do not have access to this."
@@ -93,6 +95,29 @@ def live_session(db: Session, token: str | None) -> AuthSession | None:
     session.last_seen_at = current
     db.commit()
     return session
+
+
+def delete_old_ended_sessions(db: Session) -> int:
+    """Delete sessions that ended more than a week ago. Returns how many were deleted.
+
+    A session has ended once it was signed out, sat idle past ``IDLE_TIMEOUT``,
+    or reached ``ABSOLUTE_TIMEOUT``. Nobody can use it again, so after
+    ``HOW_LONG_TO_KEEP_ENDED_SESSIONS`` it is only taking up space. Sessions
+    still in use are never touched.
+    """
+    keep_anything_that_ended_after = now() - HOW_LONG_TO_KEEP_ENDED_SESSIONS
+    signed_out_long_ago = AuthSession.revoked_at < keep_anything_that_ended_after
+    went_idle_long_ago = AuthSession.last_seen_at < keep_anything_that_ended_after - IDLE_TIMEOUT
+    hit_the_30_day_limit_long_ago = (
+        AuthSession.created_at < keep_anything_that_ended_after - ABSOLUTE_TIMEOUT
+    )
+    deleted = db.execute(
+        delete(AuthSession).where(
+            or_(signed_out_long_ago, went_idle_long_ago, hit_the_30_day_limit_long_ago)
+        )
+    )
+    db.commit()
+    return deleted.rowcount
 
 
 def set_session_cookie(response: Response, token: str) -> None:
