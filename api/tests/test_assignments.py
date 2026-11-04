@@ -1,4 +1,4 @@
-"""SCRUM-16: the rule for who an assignment reaches.
+"""SCRUM-16: the rule for who an assignment reaches. SCRUM-23: the late policy checks.
 
 Needs Postgres, because picked recipients are a Postgres array. Runs when
 DATABASE_URL is set and skips otherwise, like test_ledger.py. Each test runs
@@ -10,6 +10,7 @@ from collections.abc import Iterator
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from assignments import has_assigned_work
@@ -82,7 +83,12 @@ def world(session: Session) -> dict[str, object]:
     }
 
 
-def post(session: Session, world: dict[str, object], **targets: object) -> None:
+def post(
+    session: Session,
+    world: dict[str, object],
+    late_policy: str = "accepted_full_points",
+    **targets: object,
+) -> None:
     """Add one assignment in the first organization with the given targets."""
     session.add(
         Assignment(
@@ -90,7 +96,7 @@ def post(session: Session, world: dict[str, object], **targets: object) -> None:
             created_by_membership_id=world["supervisor"].id,
             title="Homework",
             points_value=10,
-            late_policy="accept",
+            late_policy=late_policy,
             **targets,
         )
     )
@@ -154,9 +160,35 @@ def test_another_organization_never_counts(session: Session, world: dict[str, ob
             created_by_membership_id=other_supervisor.id,
             title="Not yours",
             points_value=10,
-            late_policy="accept",
+            late_policy="accepted_full_points",
             recipient_membership_ids=[world["member"].id],
         )
     )
     session.flush()
     assert has_assigned_work(session, world["member"]) is False
+
+
+def test_half_points_up_to_48_hours_late_can_be_stored(
+    session: Session, world: dict[str, object]
+) -> None:
+    post(
+        session,
+        world,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+        team_id=world["design"].id,
+    )
+
+
+def test_the_database_refuses_a_late_policy_it_does_not_know(
+    session: Session, world: dict[str, object]
+) -> None:
+    with pytest.raises(IntegrityError, match="ck_assignment_late_policy"):
+        post(session, world, late_policy="maybe", team_id=world["design"].id)
+
+
+def test_the_database_refuses_a_late_cutoff_of_zero_hours(
+    session: Session, world: dict[str, object]
+) -> None:
+    with pytest.raises(IntegrityError, match="ck_assignment_late_cutoff_hours"):
+        post(session, world, late_cutoff_hours=0, team_id=world["design"].id)

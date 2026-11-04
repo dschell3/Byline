@@ -65,7 +65,11 @@ so if this grows it becomes a join table.
 
 **Files** live in Cloudflare R2. `submission.file_keys` holds the object keys.
 
-**Late work.** `assignment.is_mandatory` and `assignment.late_policy` (P12). Allowed values are settled with the sheet headers.
+**Late work** (SCRUM-23, shown on P12). `assignment.late_policy` is one of `not_accepted`,
+`accepted_full_points` or `accepted_half_points`, enforced by a check constraint.
+`assignment.late_cutoff_hours` is how long after `due_at` late work is still taken (null means no
+cutoff), so "accepted up to 48 hours late at half points" is `accepted_half_points` + `48`.
+The rules that use them live in `api/late_policy.py`.
 
 **`submission.status` is a deliberate cache** of the latest final review's decision, so list pages don't need a join.
 `review` is the source of truth. The app updates both in the same transaction.
@@ -179,7 +183,8 @@ erDiagram
         text title "NOT NULL"
         int points_value "NOT NULL"
         boolean is_mandatory "NOT NULL, default true"
-        text late_policy "NOT NULL"
+        text late_policy "NOT NULL: not_accepted | accepted_full_points | accepted_half_points"
+        int late_cutoff_hours "nullable, hours after due_at"
         timestamptz due_at
         timestamptz created_at "NOT NULL"
     }
