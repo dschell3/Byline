@@ -105,6 +105,7 @@ def test_an_item_carries_what_the_row_shows() -> None:
     item = group_rows([row(7, title="Competitor audit")], NOW).groups[0].items[0]
     assert item.model_dump() == {
         "id": 7,
+        "submission_id": None,
         "title": "Competitor audit",
         "set_by": "Marguerite Ellis",
         "due_at": NOW + timedelta(days=3),

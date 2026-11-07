@@ -43,6 +43,8 @@ CHANGES_REQUESTED = "changes_requested"
 
 class WorkItem(BaseModel):
     id: int
+    # The member's latest submission, when there is one: the P14 link (SCRUM-22).
+    submission_id: int | None
     title: str
     set_by: str
     due_at: datetime | None
@@ -71,6 +73,7 @@ class Row:
     points: int
     is_mandatory: bool
     submission_status: str | None  # the member's latest submission, if any
+    submission_id: int | None = None
 
 
 def _aware(moment: datetime) -> datetime:
@@ -105,6 +108,7 @@ def group_rows(rows: list[Row], at: datetime) -> WorkResponse:
         by_key[status].append(
             WorkItem(
                 id=row.id,
+                submission_id=row.submission_id,
                 title=row.title,
                 set_by=row.set_by,
                 due_at=row.due_at,
@@ -124,15 +128,15 @@ def load_rows(db: Session, member: Membership) -> list[Row]:
     """
     rows = []
     for assignment in assignments.assignments_for(db, member):
-        latest = db.scalar(
-            select(Submission.status)
+        latest = db.execute(
+            select(Submission.id, Submission.status)
             .where(
                 Submission.assignment_id == assignment.id,
                 Submission.membership_id == member.id,
             )
             .order_by(Submission.version.desc())
             .limit(1)
-        )
+        ).first()
         set_by = db.scalar(
             select(Person.full_name)
             .join(Membership, Membership.person_id == Person.id)
@@ -146,7 +150,8 @@ def load_rows(db: Session, member: Membership) -> list[Row]:
                 due_at=assignment.due_at,
                 points=assignment.points_value,
                 is_mandatory=assignment.is_mandatory,
-                submission_status=latest,
+                submission_status=latest.status if latest else None,
+                submission_id=latest.id if latest else None,
             )
         )
     return rows
