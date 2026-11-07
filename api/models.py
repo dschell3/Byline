@@ -29,6 +29,8 @@ from db import Base
 # Timestamps are timezone-aware (TIMESTAMPTZ in Postgres) and default to now() in the database.
 TIMESTAMPTZ = DateTime(timezone=True)
 ACTOR_TYPES = "actor_type IN ('person', 'system')"
+# What a review can say (SCRUM-22). work.py groups My Work by these two spellings.
+DECISIONS = "decision IN ('approved', 'changes_requested')"
 
 
 class Organization(Base):
@@ -190,6 +192,28 @@ class Assignment(Base):
     )
 
 
+class AssessmentCriterion(Base):
+    """One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22)."""
+
+    __tablename__ = "assessment_criterion"
+    __table_args__ = (
+        UniqueConstraint("assignment_id", "position", name="uq_assessment_criterion_position"),
+        CheckConstraint("max_points >= 0", name="ck_assessment_criterion_max_points"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    assignment_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("assignment.id"), nullable=False
+    )
+    # 1-based order on P12. Unique per assignment so the checklist has one shape.
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    max_points: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+
+
 class Submission(Base):
     """An intern's hand-in. A resubmit is a new row with version + 1."""
 
@@ -219,7 +243,10 @@ class Review(Base):
     """Approve or request changes. AI drafts have is_final = false; only a person writes a final."""
 
     __tablename__ = "review"
-    __table_args__ = (CheckConstraint(ACTOR_TYPES, name="ck_review_actor_type"),)
+    __table_args__ = (
+        CheckConstraint(ACTOR_TYPES, name="ck_review_actor_type"),
+        CheckConstraint(DECISIONS, name="ck_review_decision"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     submission_id: Mapped[int] = mapped_column(
@@ -229,7 +256,56 @@ class Review(Base):
     # Membership id when actor_type is person; null when it is system.
     actor_id: Mapped[int | None] = mapped_column(BigInteger)
     decision: Mapped[str] = mapped_column(Text, nullable=False)
+    # The written reason behind the decision, shown on P13 and P14 (SCRUM-21, SCRUM-22).
+    # Nullable for AI drafts and old rows; SCRUM-27 makes it required on changes_requested.
+    reason: Mapped[str | None] = mapped_column(Text)
     is_final: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+
+
+class ReviewCriterionScore(Base):
+    """A review's score against one criterion of the assignment (SCRUM-22)."""
+
+    __tablename__ = "review_criterion_score"
+    __table_args__ = (
+        UniqueConstraint("review_id", "criterion_id", name="uq_review_criterion_score"),
+        CheckConstraint("score >= 0", name="ck_review_criterion_score_score"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    review_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("review.id"), nullable=False)
+    criterion_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("assessment_criterion.id"), nullable=False
+    )
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+
+
+class SubmissionComment(Base):
+    """A comment between member and supervisor on one version of a submission (SCRUM-22).
+
+    One level of replies: parent_comment_id points at a top-level comment on the
+    same submission, never at another reply.
+    """
+
+    __tablename__ = "submission_comment"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    submission_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("submission.id"), nullable=False
+    )
+    author_membership_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("membership.id"), nullable=False
+    )
+    parent_comment_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("submission_comment.id")
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )

@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11 and `email_verification` from SCRUM-12, with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11, `email_verification` from SCRUM-12, and `assessment_criterion`, `review_criterion_score` and `submission_comment` from SCRUM-22, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -31,6 +31,9 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 13 | auth_session | A signed-in browser (SCRUM-13): `token_hash` (SHA-256, never the token), `last_seen_at`, `revoked_at`. | person 1–many. Unique on token_hash |
 | 14 | invite | A link to join one organization (SCRUM-11): the invitee's `email`, the `role`, cohort, track and team they join, who sent it, `token_hash`, `expires_at`, `accepted_at`, `revoked_at`. | organization 1–many, sent by a membership. Unique on token_hash |
 | 15 | email_verification | A link that confirms a person owns their email (SCRUM-12): the `person_id`, the `email` it was sent to, `token_hash`, `expires_at` (24 hours), `used_at`. | person 1–many. Unique on token_hash |
+| 16 | assessment_criterion | One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22): `position`, `text`, `max_points`. | assignment 1–many. Unique on (assignment_id, position) |
+| 17 | review_criterion_score | A review's `score` and optional `note` against one criterion (SCRUM-22). | review 1–many, assessment_criterion 1–many. Unique on (review_id, criterion_id) |
+| 18 | submission_comment | A comment between member and supervisor on one version of a submission (SCRUM-22): `body`, optional `parent_comment_id` for one level of replies. | submission 1–many, written by a membership |
 
 ## Decisions
 
@@ -70,6 +73,8 @@ so if this grows it becomes a join table.
 **`submission.status` is a deliberate cache** of the latest final review's decision, so list pages don't need a join.
 `review` is the source of truth. The app updates both in the same transaction.
 
+**Review history (SCRUM-22).** `review.decision` is `approved` or `changes_requested`, enforced by a check constraint, the two spellings `work.py` groups My Work by. `review.reason` is the written reason behind it, nullable for AI drafts and older rows (SCRUM-27 makes it required when changes are requested). Criteria live on the assignment (`assessment_criterion`, what P12 renders as the checklist) and scores on the review (`review_criterion_score`, one row per criterion), so two reviews of two versions are scored against the same list. Comments hang off one submission version, not the assignment, so each version's thread reads with that version's review; a reply points at a top-level comment on the same submission.
+
 **Audit log** (P34) records actor, target, `before`, `after` and the timestamp.
 
 **Roles live on membership, not person**, so one person could be a member in one organization and a supervisor in another.
@@ -100,6 +105,11 @@ erDiagram
     assignment ||--o{ submission : "receives"
     membership ||--o{ submission : "submits (intern)"
     submission ||--o{ review : "gets"
+    assignment ||--o{ assessment_criterion : "scored against"
+    review ||--o{ review_criterion_score : "scores"
+    assessment_criterion ||--o{ review_criterion_score : "scored by"
+    submission ||--o{ submission_comment : "discussed in"
+    membership ||--o{ submission_comment : "writes"
     membership ||--o{ points_ledger : "earns"
     submission |o--o{ points_ledger : "awards"
     points_ledger |o--o| points_ledger : "reverses"
@@ -197,8 +207,33 @@ erDiagram
         bigint submission_id FK "NOT NULL"
         text actor_type "NOT NULL: person | system"
         bigint actor_id "membership id when person"
-        text decision "NOT NULL"
+        text decision "NOT NULL: approved | changes_requested"
+        text reason "nullable: the written reason"
         boolean is_final "NOT NULL, human only"
+        timestamptz created_at "NOT NULL"
+    }
+    assessment_criterion {
+        bigint id PK
+        bigint assignment_id FK "NOT NULL"
+        int position "NOT NULL, unique per assignment"
+        text text "NOT NULL"
+        int max_points "NOT NULL, >= 0"
+        timestamptz created_at "NOT NULL"
+    }
+    review_criterion_score {
+        bigint id PK
+        bigint review_id FK "NOT NULL"
+        bigint criterion_id FK "NOT NULL"
+        int score "NOT NULL, >= 0"
+        text note "nullable"
+        timestamptz created_at "NOT NULL"
+    }
+    submission_comment {
+        bigint id PK
+        bigint submission_id FK "NOT NULL"
+        bigint author_membership_id FK "NOT NULL"
+        bigint parent_comment_id FK "nullable, a top-level comment on the same submission"
+        text body "NOT NULL"
         timestamptz created_at "NOT NULL"
     }
     points_ledger {
