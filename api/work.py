@@ -162,18 +162,22 @@ def for_member(db: Session, member: Membership) -> WorkResponse:
     return group_rows(load_rows(db, member), sessions.now())
 
 
+def supervising_membership(db: Session, caller: Person, organization_id: int) -> Membership | None:
+    """The caller's active supervisor or admin membership in ``organization_id``, if any."""
+    return db.scalar(
+        select(Membership)
+        .where(
+            Membership.person_id == caller.id,
+            Membership.is_active.is_(True),
+            Membership.organization_id == organization_id,
+            Membership.role.in_(("supervisor", "admin")),
+        )
+        .order_by(Membership.id)
+    )
+
+
 def can_view(db: Session, caller: Person, target: Membership) -> bool:
     """Your own work, or anyone's in an organization where you supervise or administer."""
     if target.person_id == caller.id:
         return True
-    return (
-        db.scalar(
-            select(Membership.id).where(
-                Membership.person_id == caller.id,
-                Membership.is_active.is_(True),
-                Membership.organization_id == target.organization_id,
-                Membership.role.in_(("supervisor", "admin")),
-            )
-        )
-        is not None
-    )
+    return supervising_membership(db, caller, target.organization_id) is not None

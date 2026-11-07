@@ -49,6 +49,7 @@ from models import (  # noqa: E402
     SubmissionComment,
     Team,
 )
+from scripts.create_invite import organization, team  # noqa: E402
 from security import hash_password  # noqa: E402
 
 ASSIGNMENT_TITLE = "Wireframes for the volunteer dashboard"
@@ -93,27 +94,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--team", default="Design")
     parser.add_argument("--site", default="http://localhost:5173", help="where the web app runs")
     return parser.parse_args(argv)
-
-
-def organization(db: Session, name: str) -> Organization:
-    slug = "-".join(name.lower().split())
-    org = db.scalar(select(Organization).where(Organization.slug == slug))
-    if org is None:
-        org = Organization(name=name, slug=slug)
-        db.add(org)
-        db.flush()
-        print(f"Created organization {org.name!r}")
-    return org
-
-
-def team(db: Session, org: Organization, name: str) -> Team:
-    row = db.scalar(select(Team).where(Team.organization_id == org.id, Team.name == name))
-    if row is None:
-        row = Team(organization_id=org.id, name=name)
-        db.add(row)
-        db.flush()
-        print(f"Created team {row.name!r}")
-    return row
 
 
 def person_in(
@@ -292,6 +272,7 @@ def main(argv: list[str]) -> int:
     with get_session_factory()() as db:
         org = organization(db, args.org)
         team_row = team(db, org, args.team)
+        assert team_row is not None  # the invite helper returns None only for a blank name
         supervisor = person_in(
             db, org, team_row, args.supervisor, args.supervisor_name, "supervisor", None
         )

@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import work
 from models import (
     AssessmentCriterion,
     Assignment,
@@ -221,16 +222,7 @@ def commenter(db: Session, caller: Person, submission: Submission) -> Membership
         return None
     if owner.person_id == caller.id:
         return owner
-    return db.scalar(
-        select(Membership)
-        .where(
-            Membership.person_id == caller.id,
-            Membership.is_active.is_(True),
-            Membership.organization_id == owner.organization_id,
-            Membership.role.in_(("supervisor", "admin")),
-        )
-        .order_by(Membership.id)
-    )
+    return work.supervising_membership(db, caller, owner.organization_id)
 
 
 def add_comment(

@@ -38,6 +38,9 @@ DECISIONS = "decision IN ('approved', 'changes_requested')"
 def upgrade() -> None:
     """Add review.reason and the decision check, then the three new tables."""
     op.add_column('review', sa.Column('reason', sa.Text(), nullable=True))
+    # Nothing writes reviews yet, so this should touch no rows. If a stray value
+    # exists, the safe reading is "not approved": it awards nothing.
+    op.execute(f"UPDATE review SET decision = 'changes_requested' WHERE NOT ({DECISIONS})")
     op.create_check_constraint('ck_review_decision', 'review', DECISIONS)
     op.create_table('assessment_criterion',
     sa.Column('id', sa.BigInteger(), nullable=False),

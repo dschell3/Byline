@@ -4,6 +4,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Table, type Column } from '../components/ui/Table';
+import { fetchHome } from '../lib/home';
 import { pointsLabel } from '../lib/work';
 import { formatInstant, viewerTimeZone } from '../lib/time';
 import {
@@ -289,7 +290,18 @@ function VersionSection({
 export default function SubmissionPage() {
   const { id = '' } = useParams();
   const [state, setState] = useState<State>({ status: 'loading' });
-  const timeZone = viewerTimeZone(null);
+  // The profile's zone first, then the browser's (SCRUM-15), the same source P10 uses.
+  const [timeZone, setTimeZone] = useState(() => viewerTimeZone(null));
+
+  useEffect(() => {
+    let current = true;
+    fetchHome()
+      .then((home) => current && home && setTimeZone(viewerTimeZone(home.timezone)))
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let current = true;

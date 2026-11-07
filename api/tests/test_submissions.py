@@ -239,3 +239,15 @@ def test_someone_who_cannot_read_cannot_comment(client: TestClient, seeded: Seed
     sign_in(client, OTHER_MEMBER)
     r = client.post(f"/submissions/{seeded.version1_id}/comments", json={"body": "hi"})
     assert r.status_code == 403
+
+
+# --- the link from My Work ----------------------------------------------------------------
+
+
+def test_my_work_links_the_row_to_the_latest_version(client: TestClient, seeded: Seeded) -> None:
+    sign_in(client, MEMBER)
+    groups = client.get("/me/work").json()["groups"]
+    items = [i for g in groups for i in g["items"] if i["title"] == seeding.ASSIGNMENT_TITLE]
+    assert len(items) == 1
+    assert items[0]["submission_id"] == seeded.version2_id
+    assert items[0]["status"] == "submitted"

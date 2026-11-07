@@ -81,7 +81,7 @@ so if this grows it becomes a join table.
 
 ## Still open
 
-- Column details on assignment, submission and review wait for Lyric's tracking-sheet headers. They don't change the table shape.
+- Column details on assignment and submission (SCRUM-18, SCRUM-19) wait for Lyric's tracking-sheet headers. They don't change the table shape. Review columns are settled (SCRUM-22).
 - Can one supervisor run more than one team? This draft says one team per membership. If several, we add a join table.
 
 ## Diagram

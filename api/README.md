@@ -288,6 +288,7 @@ runs, so import new model modules there as they are added.
 | `db.py` | SQLAlchemy engine, session factory and declarative `Base` |
 | `alembic.ini`, `alembic/` | Migration config and scripts |
 | `scripts/create_invite.py` | Dev helper: make an invite link (goes away with SCRUM-39/42) |
+| `scripts/seed_submission.py` | Dev helper: one member's reviewed, resubmitted submission for P13 and P14 (goes away with SCRUM-19 and the Sprint 4 review cards) |
 | `tests/` | pytest suite |
 | `requirements.txt` | Pinned dependencies |
 | `requirements-dev.txt` | Dev tools on top of the runtime pins (ruff) |
