@@ -134,12 +134,11 @@ def _scores(db: Session, review_id: int) -> list[ScoreOut]:
     ]
 
 
-def _reviews(db: Session, submission_id: int) -> list[ReviewOut]:
-    reviews = db.scalars(
-        select(Review)
-        .where(Review.submission_id == submission_id)
-        .order_by(Review.created_at, Review.id)
-    ).all()
+def _reviews(db: Session, submission_id: int, include_drafts: bool) -> list[ReviewOut]:
+    query = select(Review).where(Review.submission_id == submission_id)
+    if not include_drafts:
+        query = query.where(Review.is_final.is_(True))
+    reviews = db.scalars(query.order_by(Review.created_at, Review.id)).all()
     return [
         ReviewOut(
             id=review.id,
@@ -176,8 +175,13 @@ def _comments(db: Session, submission_id: int) -> list[CommentOut]:
     ]
 
 
-def history(db: Session, submission: Submission) -> SubmissionDetail:
-    """Everything P14 shows for the work ``submission`` belongs to."""
+def history(db: Session, submission: Submission, viewer_is_owner: bool) -> SubmissionDetail:
+    """Everything P14 shows for the work ``submission`` belongs to.
+
+    The member who made it sees final reviews only. A draft (``is_final = false``)
+    is the assistant's until a supervisor acts on it (docs/erd.md), so only
+    supervisors and admins see drafts.
+    """
     assignment = db.get(Assignment, submission.assignment_id)
     versions = db.scalars(
         select(Submission)
@@ -206,7 +210,7 @@ def history(db: Session, submission: Submission) -> SubmissionDetail:
                 status=version.status,
                 submitted_at=version.submitted_at,
                 file_keys=list(version.file_keys or []),
-                reviews=_reviews(db, version.id),
+                reviews=_reviews(db, version.id, include_drafts=not viewer_is_owner),
                 comments=_comments(db, version.id),
             )
             for version in versions

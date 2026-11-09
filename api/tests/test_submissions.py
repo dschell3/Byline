@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 import ratelimit
 from db import as_psycopg_url, get_db
 from main import app
-from models import Membership, Organization, Person, Team
+from models import Membership, Organization, Person, Review, Team
 from scripts import seed_submission as seeding
 from scripts.seed_submission import Seeded
 from security import hash_password
@@ -157,6 +157,32 @@ def test_comments_come_oldest_first_with_their_parent(client: TestClient, seeded
     assert first["author_name"] == MEMBER.split("@")[0]
     assert reply["author_name"] == SUPERVISOR.split("@")[0]
     assert versions[1]["comments"] == []
+
+
+def test_a_draft_review_is_hidden_from_the_member_until_a_person_acts(
+    client: TestClient, seeded: Seeded, db: Session
+) -> None:
+    """An AI draft (is_final = false) is for the supervisor; the member sees finals only."""
+    db.add(
+        Review(
+            submission_id=seeded.version2_id,
+            actor_type="system",
+            actor_id=None,
+            decision="approved",
+            reason="Draft: looks complete.",
+            is_final=False,
+        )
+    )
+    db.flush()
+    sign_in(client, MEMBER)
+    versions = client.get(f"/submissions/{seeded.version2_id}").json()["versions"]
+    assert versions[1]["reviews"] == []
+    sign_in(client, SUPERVISOR)
+    versions = client.get(f"/submissions/{seeded.version2_id}").json()["versions"]
+    (draft,) = versions[1]["reviews"]
+    assert draft["is_final"] is False
+    assert draft["actor_type"] == "system"
+    assert draft["actor_name"] is None
 
 
 # --- who may look -------------------------------------------------------------------------

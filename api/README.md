@@ -215,7 +215,7 @@ history; the page is at `/s/{id}`.
 
 | Endpoint | Result |
 | --- | --- |
-| `GET /submissions/{id}` | Session required. `{"id", "assignment", "member", "versions"}`: `versions` oldest first, each with `reviews` (oldest first, each with `scores` in criterion order) and `comments` (oldest first; a reply carries its `parent_comment_id`). 403 for anyone but the member who made it or a supervisor or admin in the same organization, and for an id that does not exist, so ids cannot be probed. |
+| `GET /submissions/{id}` | Session required. `{"id", "assignment", "member", "versions"}`: `versions` oldest first, each with `reviews` (oldest first, each with `scores` in criterion order) and `comments` (oldest first; a reply carries its `parent_comment_id`). The member sees final reviews only; drafts (`is_final = false`) appear to supervisors and admins. 403 for anyone but the member who made it or a supervisor or admin in the same organization, and for an id that does not exist, so ids cannot be probed. |
 | `POST /submissions/{id}/comments` | Same access. Takes `{"body", "parent_comment_id"?}` and returns 201 with the comment. 422 when the body is blank or the parent is not a top-level comment on this same version. |
 
 My Work rows carry `submission_id` (null until the member hands something in)

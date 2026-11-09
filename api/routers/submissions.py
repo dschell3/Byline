@@ -20,12 +20,13 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 BAD_PARENT = "Replies go on a comment on this same submission."
 
 
-def _visible(db: Session, user: CurrentUser, submission_id: int) -> Submission:
+def _visible(db: Session, user: CurrentUser, submission_id: int) -> tuple[Submission, Membership]:
+    """The submission and the membership that made it, or 403 for anyone not allowed."""
     submission = db.get(Submission, submission_id)
     owner = db.get(Membership, submission.membership_id) if submission else None
     if submission is None or owner is None or not work.can_view(db, user.person, owner):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
-    return submission
+    return submission, owner
 
 
 @router.get("/{submission_id}", response_model=submissions.SubmissionDetail)
@@ -36,9 +37,9 @@ def submission_detail(
     db: Session = Depends(get_db),
 ) -> submissions.SubmissionDetail:
     """Every version, each review with its scores, and the comments, oldest first."""
-    submission = _visible(db, user, submission_id)
+    submission, owner = _visible(db, user, submission_id)
     response.headers["Cache-Control"] = "no-store"
-    return submissions.history(db, submission)
+    return submissions.history(db, submission, viewer_is_owner=owner.person_id == user.person.id)
 
 
 @router.post(
@@ -54,7 +55,7 @@ def add_comment(
     db: Session = Depends(get_db),
 ) -> submissions.CommentOut:
     """Add a comment, or a reply to a top-level comment, on this version."""
-    submission = _visible(db, user, submission_id)
+    submission, _owner = _visible(db, user, submission_id)
     author = submissions.commenter(db, user.person, submission)
     if author is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
