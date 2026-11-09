@@ -6,21 +6,17 @@
 # is opened in The Emerson Empire's name, it points at this file and gets an
 # identical stack.
 #
-# Plans are currently `free` so the team can verify the deployment at no cost.
-# Moving to production is a two-line change:
-#   databases.plan  free -> basic-256mb   ($6/month)
-#   services.plan   free -> starter       ($7/month)
-#
-# Free-tier limits to be aware of while we are on it:
-#   - the Postgres instance is deleted 30 days after it is created
-#   - the API sleeps after 15 minutes idle and takes ~1 minute to wake
-#   - free web services cannot have a custom domain
+# SCRUM-75: the stack now runs on paid plans in The Emerson Empire's own
+# Render account, billed to the client (charter section 2.4):
+#   byline-db   basic-256mb  ($6/month)  never deleted, unlike the free plan
+#   byline-api  starter      ($7/month)  never sleeps, so no 1-minute wake-up
+#   byline-web  static site  (free)
 
 databases:
   - name: byline-db
     databaseName: byline
     user: byline
-    plan: free
+    plan: basic-256mb
     region: oregon
 
 services:
@@ -28,7 +24,7 @@ services:
   - type: web
     name: byline-api
     runtime: python
-    plan: free
+    plan: starter
     region: oregon
     rootDir: api
     buildCommand: pip install -r requirements.txt
@@ -46,6 +42,11 @@ services:
         fromDatabase:
           name: byline-db
           property: connectionString
+      # The web app's address, used to build the links in verification emails
+      # (api/verifications.py). Render asks for it when the Blueprint is
+      # created, because it is only known once byline-web exists.
+      - key: SITE_URL
+        sync: false
 
   # --- React client ---------------------------------------------------------
   - type: web
