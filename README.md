@@ -85,12 +85,12 @@ Both run in CI on every pull request. API tests that need a database run only wh
 
 ## Deployment
 
-- Front end: TODO (SCRUM-75)
-- API health check: TODO (SCRUM-75)
+- Front end: https://byline-web-eh4k.onrender.com/
+- API health check: https://byline-api-mn90.onrender.com/health
 
-Every merge to `main` deploys both services automatically; the stack is declared in `render.yaml`.
+Every merge to `main` deploys both services automatically; the stack is declared in `render.yaml`. These are the current services; the API takes under a minute to wake after being idle.
 
-<!-- SCRUM-75 step 2: Jang fills in the new URLs and describes the client's Render account here. -->
+<!-- SCRUM-75 step 2: Jang swaps in the client-account URLs and describes the account here. -->
 
 ## Team
 
@@ -105,7 +105,7 @@ Every merge to `main` deploys both services automatically; the stack is declared
 
 ## Links
 
-[Jira](https://csus-team-notchuds.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Figma](https://www.figma.com/design/iJjtNcHW10AKhJZD71hQFN/Byline-UI-Mockup--CSC-190-?node-id=298-2&t=XYNGRGfhRtMUm7Uy-0) · Project website: TODO (SCRUM-75)
+[Jira](https://csus-team-notchuds.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Figma](https://www.figma.com/design/iJjtNcHW10AKhJZD71hQFN/Byline-UI-Mockup--CSC-190-?node-id=298-2&t=XYNGRGfhRtMUm7Uy-0) · [Project website](https://byline-web-eh4k.onrender.com/)
 
 ## License
 
