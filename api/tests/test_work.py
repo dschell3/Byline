@@ -110,7 +110,26 @@ def test_an_item_carries_what_the_row_shows() -> None:
         "due_at": NOW + timedelta(days=3),
         "points": 10,
         "status": "due-soon",
+        "late_policy": "accepted_full_points",
+        "late_cutoff_hours": None,
     }
+
+
+def test_an_item_carries_its_late_policy_so_the_page_can_describe_it() -> None:
+    half_points_up_to_48_hours = Row(
+        1,
+        "Competitor audit",
+        "Marguerite Ellis",
+        NOW + timedelta(days=3),
+        15,
+        True,
+        None,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+    )
+    item = group_rows([half_points_up_to_48_hours], NOW).groups[0].items[0]
+    assert item.late_policy == "accepted_half_points"
+    assert item.late_cutoff_hours == 48
 
 
 def test_a_due_date_from_sqlite_without_a_timezone_still_compares() -> None:

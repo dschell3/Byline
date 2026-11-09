@@ -13,6 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import work
 from assignments import has_assigned_work
 from db import as_psycopg_url
 from models import Assignment, Cohort, Membership, Organization, Person, Team, Track
@@ -192,3 +193,18 @@ def test_the_database_refuses_a_late_cutoff_of_zero_hours(
 ) -> None:
     with pytest.raises(IntegrityError, match="ck_assignment_late_cutoff_hours"):
         post(session, world, late_cutoff_hours=0, team_id=world["design"].id)
+
+
+def test_my_work_rows_carry_the_late_policy_stored_on_the_assignment(
+    session: Session, world: dict[str, object]
+) -> None:
+    post(
+        session,
+        world,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+        team_id=world["design"].id,
+    )
+    [row] = work.load_rows(session, world["member"])
+    assert row.late_policy == "accepted_half_points"
+    assert row.late_cutoff_hours == 48

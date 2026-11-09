@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 import assignments
 import sessions
+from late_policy import ACCEPTED_FULL_POINTS
 from models import Membership, Person, Submission
 
 # (key, label). The keys match the status words in the web app's Badge.
@@ -48,6 +49,10 @@ class WorkItem(BaseModel):
     due_at: datetime | None
     points: int
     status: str
+    # SCRUM-23: what happens if it is handed in late. The web app turns these into
+    # words (web/src/lib/latePolicy.ts); the rules live in late_policy.py.
+    late_policy: str
+    late_cutoff_hours: int | None
 
 
 class WorkGroup(BaseModel):
@@ -71,6 +76,8 @@ class Row:
     points: int
     is_mandatory: bool
     submission_status: str | None  # the member's latest submission, if any
+    late_policy: str = ACCEPTED_FULL_POINTS
+    late_cutoff_hours: int | None = None
 
 
 def _aware(moment: datetime) -> datetime:
@@ -110,6 +117,8 @@ def group_rows(rows: list[Row], at: datetime) -> WorkResponse:
                 due_at=row.due_at,
                 points=row.points,
                 status=status,
+                late_policy=row.late_policy,
+                late_cutoff_hours=row.late_cutoff_hours,
             )
         )
     return WorkResponse(
@@ -147,6 +156,8 @@ def load_rows(db: Session, member: Membership) -> list[Row]:
                 points=assignment.points_value,
                 is_mandatory=assignment.is_mandatory,
                 submission_status=latest,
+                late_policy=assignment.late_policy,
+                late_cutoff_hours=assignment.late_cutoff_hours,
             )
         )
     return rows
