@@ -1,5 +1,6 @@
 // SCRUM-14: data and wording for My Work (P10).
 import { apiFetch } from './auth';
+import type { LatePolicy } from './latePolicy';
 import type { Status } from '../components/ui/Badge';
 
 export type WorkItem = {
@@ -9,6 +10,9 @@ export type WorkItem = {
   due_at: string | null;
   points: number;
   status: Status;
+  // SCRUM-23: describeLatePolicy() in latePolicy.ts turns these into words.
+  late_policy: LatePolicy;
+  late_cutoff_hours: number | null;
 };
 
 export type WorkGroup = { key: Status; label: string; items: WorkItem[] };
