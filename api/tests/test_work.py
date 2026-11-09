@@ -112,6 +112,7 @@ def test_an_item_carries_what_the_row_shows() -> None:
         "status": "due-soon",
         "late_policy": "accepted_full_points",
         "late_cutoff_hours": None,
+        "handed_in_late": False,
     }
 
 
@@ -319,3 +320,19 @@ def test_member_in_ist_and_supervisor_in_pst_agree_on_overdue(
     assert [i["title"] for i in theirs] == ["Competitor audit"]
     assert mine[0]["due_at"] == theirs[0]["due_at"]
     assert datetime.fromisoformat(mine[0]["due_at"]) == due
+
+
+def test_an_item_handed_in_late_says_so() -> None:
+    submitted_late = Row(
+        1,
+        "Competitor audit",
+        "Marguerite Ellis",
+        NOW - timedelta(days=2),
+        10,
+        True,
+        "submitted",
+        handed_in_late=True,
+    )
+    item = group_rows([submitted_late], NOW).groups[2].items[0]
+    assert item.status == "submitted"
+    assert item.handed_in_late is True

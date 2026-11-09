@@ -7,6 +7,7 @@ inside a transaction that is rolled back.
 
 import os
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine
@@ -16,7 +17,16 @@ from sqlalchemy.orm import Session
 import work
 from assignments import has_assigned_work
 from db import as_psycopg_url
-from models import Assignment, Cohort, Membership, Organization, Person, Team, Track
+from models import (
+    Assignment,
+    Cohort,
+    Membership,
+    Organization,
+    Person,
+    Submission,
+    Team,
+    Track,
+)
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"), reason="needs a Postgres at DATABASE_URL"
@@ -89,19 +99,19 @@ def post(
     world: dict[str, object],
     late_policy: str = "accepted_full_points",
     **targets: object,
-) -> None:
+) -> Assignment:
     """Add one assignment in the first organization with the given targets."""
-    session.add(
-        Assignment(
-            organization_id=world["org"].id,
-            created_by_membership_id=world["supervisor"].id,
-            title="Homework",
-            points_value=10,
-            late_policy=late_policy,
-            **targets,
-        )
+    assignment = Assignment(
+        organization_id=world["org"].id,
+        created_by_membership_id=world["supervisor"].id,
+        title="Homework",
+        points_value=10,
+        late_policy=late_policy,
+        **targets,
     )
+    session.add(assignment)
     session.flush()
+    return assignment
 
 
 def test_nothing_assigned_yet(session: Session, world: dict[str, object]) -> None:
@@ -208,3 +218,50 @@ def test_my_work_rows_carry_the_late_policy_stored_on_the_assignment(
     [row] = work.load_rows(session, world["member"])
     assert row.late_policy == "accepted_half_points"
     assert row.late_cutoff_hours == 48
+
+
+DUE = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
+
+
+def hand_in(
+    session: Session, world: dict[str, object], assignment: Assignment, version: int, at: datetime
+) -> None:
+    """The intern hands in a version of their work at the moment ``at``."""
+    session.add(
+        Submission(
+            assignment_id=assignment.id,
+            membership_id=world["member"].id,
+            version=version,
+            status="submitted",
+            submitted_at=at,
+        )
+    )
+    session.flush()
+
+
+def test_work_handed_in_before_the_deadline_is_not_flagged_late(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(session, world, team_id=world["design"].id, due_at=DUE)
+    hand_in(session, world, assignment, version=1, at=DUE - timedelta(hours=1))
+    [row] = work.load_rows(session, world["member"])
+    assert row.handed_in_late is False
+
+
+def test_work_handed_in_after_the_deadline_is_flagged_late(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(session, world, team_id=world["design"].id, due_at=DUE)
+    hand_in(session, world, assignment, version=1, at=DUE + timedelta(hours=1))
+    [row] = work.load_rows(session, world["member"])
+    assert row.handed_in_late is True
+
+
+def test_a_requested_resubmission_after_the_deadline_does_not_make_it_late(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(session, world, team_id=world["design"].id, due_at=DUE)
+    hand_in(session, world, assignment, version=1, at=DUE - timedelta(hours=1))
+    hand_in(session, world, assignment, version=2, at=DUE + timedelta(days=2))
+    [row] = work.load_rows(session, world["member"])
+    assert row.handed_in_late is False
