@@ -14,10 +14,11 @@ from late_policy import (
     NOT_ACCEPTED,
     can_still_be_handed_in,
     last_moment_late_work_is_taken,
+    late_penalty_ledger_row,
     points_after_late_penalty,
     was_handed_in_late,
 )
-from models import Assignment
+from models import Assignment, Submission
 
 DUE = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
 ONE_SECOND = timedelta(seconds=1)
@@ -125,3 +126,33 @@ def test_working_out_points_for_late_work_that_was_never_allowed_is_a_mistake() 
     assignment = an_assignment(late_policy=NOT_ACCEPTED)
     with pytest.raises(ValueError, match="does not accept late work"):
         points_after_late_penalty(assignment, DUE + ONE_HOUR)
+
+
+# --- The ledger row for the late penalty -----------------------------------------
+
+
+def approved_submission() -> Submission:
+    return Submission(id=40, assignment_id=1, membership_id=7, version=1, status="approved")
+
+
+def test_on_time_work_gets_no_late_penalty_row() -> None:
+    assignment = an_assignment(late_policy=ACCEPTED_HALF_POINTS)
+    assert late_penalty_ledger_row(assignment, approved_submission(), DUE) is None
+
+
+def test_late_work_under_full_points_gets_no_late_penalty_row() -> None:
+    assignment = an_assignment(late_policy=ACCEPTED_FULL_POINTS)
+    assert late_penalty_ledger_row(assignment, approved_submission(), DUE + ONE_HOUR) is None
+
+
+def test_late_work_under_half_points_gets_a_row_taking_off_the_other_half() -> None:
+    fifteen_points = an_assignment(late_policy=ACCEPTED_HALF_POINTS, points_value=15)
+    row = late_penalty_ledger_row(fifteen_points, approved_submission(), DUE + ONE_HOUR)
+    assert row is not None
+    assert row.amount == -7
+    assert row.membership_id == 7
+    assert row.submission_id == 40
+    assert row.actor_type == "system"
+    assert row.reason == (
+        "Late penalty: handed in after the due date, so worth half points (8 of 15)."
+    )

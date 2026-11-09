@@ -14,12 +14,16 @@ Late means handed in after the exact moment ``due_at`` names. Both times are
 stored in UTC, so the answer is the same wherever the intern or supervisor
 is: a due date of 11:59:59 PM in India and a hand-in at 11:59:59 PM in India
 are the same instant, and that is on time. Work with no due date is never late.
+
+When late work is approved, the full points and the late penalty are written
+as two separate rows in the points ledger, so an intern can see exactly what
+was taken off and why. ``late_penalty_ledger_row()`` builds the second one.
 """
 
 from datetime import datetime, timedelta
 
 from invites import as_utc
-from models import Assignment
+from models import Assignment, PointsLedger, Submission
 
 NOT_ACCEPTED = "not_accepted"
 ACCEPTED_FULL_POINTS = "accepted_full_points"
@@ -72,4 +76,30 @@ def points_after_late_penalty(assignment: Assignment, handed_in_at: datetime) ->
     raise ValueError(
         f"Assignment {assignment.id} does not accept late work, so a late hand-in has no "
         "points to work out. Check can_still_be_handed_in() before accepting it."
+    )
+
+
+def late_penalty_ledger_row(
+    assignment: Assignment, approved_submission: Submission, first_handed_in_at: datetime
+) -> PointsLedger | None:
+    """The points-ledger row that takes points off for late work, or None if nothing is taken off.
+
+    Write it in the same transaction as the row awarding the full points, so the
+    two always appear together. Lateness is judged on the first hand-in; the
+    points belong to the submission that was approved. The row is not saved here.
+    """
+    full_points = assignment.points_value
+    points_kept = points_after_late_penalty(assignment, first_handed_in_at)
+    points_taken_off = full_points - points_kept
+    if points_taken_off == 0:
+        return None
+    return PointsLedger(
+        membership_id=approved_submission.membership_id,
+        submission_id=approved_submission.id,
+        amount=-points_taken_off,
+        reason=(
+            f"Late penalty: handed in after the due date, so worth half points "
+            f"({points_kept} of {full_points})."
+        ),
+        actor_type="system",
     )

@@ -10,19 +10,21 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import work
 from assignments import has_assigned_work
 from db import as_psycopg_url
+from late_policy import late_penalty_ledger_row
 from models import (
     Assignment,
     Cohort,
     Membership,
     Organization,
     Person,
+    PointsLedger,
     Submission,
     Team,
     Track,
@@ -225,18 +227,18 @@ DUE = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
 
 def hand_in(
     session: Session, world: dict[str, object], assignment: Assignment, version: int, at: datetime
-) -> None:
+) -> Submission:
     """The intern hands in a version of their work at the moment ``at``."""
-    session.add(
-        Submission(
-            assignment_id=assignment.id,
-            membership_id=world["member"].id,
-            version=version,
-            status="submitted",
-            submitted_at=at,
-        )
+    submission = Submission(
+        assignment_id=assignment.id,
+        membership_id=world["member"].id,
+        version=version,
+        status="submitted",
+        submitted_at=at,
     )
+    session.add(submission)
     session.flush()
+    return submission
 
 
 def test_work_handed_in_before_the_deadline_is_not_flagged_late(
@@ -265,3 +267,35 @@ def test_a_requested_resubmission_after_the_deadline_does_not_make_it_late(
     hand_in(session, world, assignment, version=2, at=DUE + timedelta(days=2))
     [row] = work.load_rows(session, world["member"])
     assert row.handed_in_late is False
+
+
+def test_a_late_penalty_is_its_own_ledger_row_and_the_total_is_half(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(
+        session,
+        world,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+        team_id=world["design"].id,
+        due_at=DUE,
+    )
+    late_by_an_hour = DUE + timedelta(hours=1)
+    approved = hand_in(session, world, assignment, version=1, at=late_by_an_hour)
+
+    full_award = PointsLedger(
+        membership_id=world["member"].id,
+        submission_id=approved.id,
+        amount=assignment.points_value,
+        reason="Approved",
+        actor_type="system",
+    )
+    penalty = late_penalty_ledger_row(assignment, approved, first_handed_in_at=late_by_an_hour)
+    session.add_all([full_award, penalty])
+    session.flush()
+
+    amounts = session.scalars(
+        select(PointsLedger.amount).where(PointsLedger.membership_id == world["member"].id)
+    ).all()
+    assert sorted(amounts) == [-5, 10]
+    assert sum(amounts) == 5
