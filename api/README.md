@@ -265,7 +265,7 @@ Delivery is SMTP, configured by `RESET_SMTP_HOST`, `RESET_SMTP_PORT` (default
 (default true), `RESET_FROM_EMAIL` and `RESET_WEB_BASE_URL`, the web origin
 the link points at. Until they are set, the confirmation screen works but
 `reset_mail` logs a warning and sends nothing; the token is never logged.
-`RESET_WEB_BASE_URL` is not yet declared in `render.yaml` (SCRUM-75 step 2).
+`render.yaml` declares `RESET_WEB_BASE_URL`, so Render asks for it when the Blueprint is created.
 Tests use a mocked SMTP transport; a real-provider delivery has not been tried.
 ## Submissions (SCRUM-22)
 
