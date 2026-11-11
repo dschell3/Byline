@@ -156,6 +156,40 @@ rather than writing its own query.
 
 Every timestamp is stored and compared in UTC. Whether work is overdue is decided on the server by `work.status_of`, which compares `due_at` with the current UTC time, so two people looking at the same assignment never disagree about whether it is late. The web app converts an instant to the viewer's timezone only when it renders, in `web/src/lib/time.ts`: the profile timezone (P18), else the browser's, else UTC. Relative wording ("in 3 hours", "2 days ago") is worked out in the browser from the viewer's own clock. Calendar dates such as a cohort's start and end are not instants and are not converted.
 
+## Late policy (SCRUM-23)
+
+Each assignment says what happens to work handed in after its due date.
+
+| `late_policy` | Meaning |
+| --- | --- |
+| `not_accepted` | Nothing can be handed in once the due date has passed |
+| `accepted_full_points` | Late work is still taken and worth full points |
+| `accepted_half_points` | Late work is still taken but worth half points, rounded up (15 becomes 8) |
+
+`late_cutoff_hours` is how long after the due date late work is still taken;
+empty means no cutoff. "Accepted up to 48 hours late at half points" is
+`accepted_half_points` with `48`. The database refuses any other policy and
+any cutoff below 1 hour.
+
+The rules live in one place, `late_policy.py`, so every page agrees:
+
+| Function | Answers |
+| --- | --- |
+| `was_handed_in_late(assignment, handed_in_at)` | Did it come in after the exact due moment? Compared in UTC, so 11:59:59 PM on the due date is on time wherever the intern is |
+| `last_moment_late_work_is_taken(assignment)` | When hand-ins stop being taken, or none if they never stop |
+| `can_still_be_handed_in(assignment, at)` | Will it still take a hand-in right now? Call this before accepting one (P13) |
+| `points_after_late_penalty(assignment, handed_in_at)` | What the work is worth after the policy |
+| `late_penalty_ledger_row(assignment, approved_submission, first_handed_in_at)` | The negative ledger row for the points taken off, or none |
+
+Lateness is judged on the **first** hand-in, so a resubmission the reviewer
+asked for after the deadline does not make work late. When late work is
+approved, the full award and the late penalty are two separate ledger rows,
+written in one transaction, so the intern can see what was taken off and why.
+
+My Work items carry `late_policy`, `late_cutoff_hours` and `handed_in_late`.
+In the web app, `describeLatePolicy()` in `web/src/lib/latePolicy.ts` writes
+the sentence P12 shows, with the last moment in the viewer's timezone.
+
 ## Profile (SCRUM-17)
 
 The profile page (P18) reads and writes the signed-in person's own settings.

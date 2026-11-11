@@ -29,6 +29,8 @@ from db import Base
 # Timestamps are timezone-aware (TIMESTAMPTZ in Postgres) and default to now() in the database.
 TIMESTAMPTZ = DateTime(timezone=True)
 ACTOR_TYPES = "actor_type IN ('person', 'system')"
+# What happens to work handed in after the due date (SCRUM-23). The rules live in late_policy.py.
+LATE_POLICIES = "late_policy IN ('not_accepted', 'accepted_full_points', 'accepted_half_points')"
 
 
 class Organization(Base):
@@ -167,6 +169,10 @@ class Assignment(Base):
     """Work a supervisor posts. Targets a team, cohort, track and/or picked members."""
 
     __tablename__ = "assignment"
+    __table_args__ = (
+        CheckConstraint(LATE_POLICIES, name="ck_assignment_late_policy"),
+        CheckConstraint("late_cutoff_hours > 0", name="ck_assignment_late_cutoff_hours"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     organization_id: Mapped[int] = mapped_column(
@@ -184,6 +190,8 @@ class Assignment(Base):
     points_value: Mapped[int] = mapped_column(Integer, nullable=False)
     is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     late_policy: Mapped[str] = mapped_column(Text, nullable=False)
+    # How many hours after the due date late work is still taken. None means no cutoff.
+    late_cutoff_hours: Mapped[int | None] = mapped_column(Integer)
     due_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
