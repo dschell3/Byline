@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage.tsx';
 import InvitePage from './pages/InvitePage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import SignInPage from './pages/SignInPage.tsx';
+import SubmissionPage from './pages/SubmissionPage.tsx';
 import TokensPage from './pages/TokensPage.tsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.tsx';
@@ -22,6 +23,8 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<AppLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/me" element={<ProfilePage />} />
+            {/* P14: one submission's versions, reviews and comments (SCRUM-22). */}
+            <Route path="/s/:id" element={<SubmissionPage />} />
           </Route>
         </Route>
         <Route path="/signin" element={<SignInPage />} />
