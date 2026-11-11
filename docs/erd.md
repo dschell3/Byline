@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11 and `email_verification` from SCRUM-12, with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11, `password_reset_token` from SCRUM-10 and `email_verification` from SCRUM-12, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -31,6 +31,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 13 | auth_session | A signed-in browser (SCRUM-13): `token_hash` (SHA-256, never the token), `last_seen_at`, `revoked_at`. | person 1–many. Unique on token_hash |
 | 14 | invite | A link to join one organization (SCRUM-11): the invitee's `email`, the `role`, cohort, track and team they join, who sent it, `token_hash`, `expires_at`, `accepted_at`, `revoked_at`. | organization 1–many, sent by a membership. Unique on token_hash |
 | 15 | email_verification | A link that confirms a person owns their email (SCRUM-12): the `person_id`, the `email` it was sent to, `token_hash`, `expires_at` (24 hours), `used_at`. | person 1–many. Unique on token_hash |
+| 16 | password_reset_token | A link that lets a person set a new password (SCRUM-10): `person_id`, `token_hash`, `expires_at` (1 hour), `used_at`. | person 1–many. Unique on token_hash |
 
 ## Decisions
 
@@ -112,6 +113,7 @@ erDiagram
     organization ||--o{ invite : "sends"
     membership ||--o{ invite : "sent by"
     person ||--o{ email_verification : "confirms"
+    person ||--o{ password_reset_token : "resets via"
 
     organization {
         bigint id PK
@@ -266,6 +268,14 @@ erDiagram
         text email "NOT NULL: the address the link was sent to"
         text token_hash "NOT NULL, UNIQUE: SHA-256 of the URL token"
         timestamptz expires_at "NOT NULL: 24 hours after created_at"
+        timestamptz used_at "nullable, set once"
+        timestamptz created_at "NOT NULL"
+    }
+    password_reset_token {
+        bigint id PK
+        bigint person_id FK "NOT NULL, indexed"
+        text token_hash "NOT NULL, UNIQUE: SHA-256 of the URL token"
+        timestamptz expires_at "NOT NULL: 1 hour after created_at"
         timestamptz used_at "nullable, set once"
         timestamptz created_at "NOT NULL"
     }

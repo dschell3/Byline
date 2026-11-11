@@ -245,6 +245,29 @@ python scripts/create_verification.py you@example.com            # confirmed, th
 python scripts/create_verification.py you@example.com --expired  # expired
 ```
 
+## Password reset (SCRUM-10)
+
+A person who forgot their password asks for a link by email, opens it (P03)
+and sets a new one. Like invites and verification, the URL carries a random
+token and `password_reset_token` stores only its SHA-256.
+
+| Endpoint | Result |
+| --- | --- |
+| `POST /auth/forgot-password` | Public. Takes `{"email"}` and returns the same 200 message whether or not the address is known, so it cannot be used to find accounts. Limited per email and per IP (`ratelimit.FailureLimiter`). |
+| `GET /auth/reset-password/{token}` | Public. Returns `{"state"}` so P03 can show the valid, expired or used screen before the form is filled. `Cache-Control: no-store`. |
+| `POST /auth/reset-password/{token}` | Public. Takes `new_password` and `confirm_password`, marks the token used and revokes every live session for that person, so a stolen session does not survive a reset. |
+
+Links last one hour (`password_reset.TOKEN_LIFETIME`) and work once. A newer
+request does not yet retire older unused links; that is SCRUM-78.
+
+Delivery is SMTP, configured by `RESET_SMTP_HOST`, `RESET_SMTP_PORT` (default
+587), `RESET_SMTP_USERNAME`, `RESET_SMTP_PASSWORD`, `RESET_SMTP_STARTTLS`
+(default true), `RESET_FROM_EMAIL` and `RESET_WEB_BASE_URL`, the web origin
+the link points at. Until they are set, the confirmation screen works but
+`reset_mail` logs a warning and sends nothing; the token is never logged.
+`RESET_WEB_BASE_URL` is not yet declared in `render.yaml` (SCRUM-75 step 2).
+Tests use a mocked SMTP transport; a real-provider delivery has not been tried.
+
 ## Tests
 
 ```bash
