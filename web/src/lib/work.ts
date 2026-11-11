@@ -5,6 +5,8 @@ import type { Status } from '../components/ui/Badge';
 
 export type WorkItem = {
   id: number;
+  // The latest submission, once there is one: where the row links (P14, SCRUM-22).
+  submission_id: number | null;
   title: string;
   set_by: string;
   due_at: string | null;

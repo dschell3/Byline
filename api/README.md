@@ -267,6 +267,30 @@ the link points at. Until they are set, the confirmation screen works but
 `reset_mail` logs a warning and sends nothing; the token is never logged.
 `render.yaml` declares `RESET_WEB_BASE_URL`, so Render asks for it when the Blueprint is created.
 Tests use a mocked SMTP transport; a real-provider delivery has not been tried.
+## Submissions (SCRUM-22)
+
+The submission page (P14) shows every version of one member's work on an
+assignment, each review with the written reason and a score per criterion,
+and the comment thread on each version. One version's id names the whole
+history; the page is at `/s/{id}`.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /submissions/{id}` | Session required. `{"id", "assignment", "member", "versions"}`: `versions` oldest first, each with `reviews` (oldest first, each with `scores` in criterion order) and `comments` (oldest first; a reply carries its `parent_comment_id`). The member sees final reviews only; drafts (`is_final = false`) appear to supervisors and admins. 403 for anyone but the member who made it or a supervisor or admin in the same organization, and for an id that does not exist, so ids cannot be probed. |
+| `POST /submissions/{id}/comments` | Same access. Takes `{"body", "parent_comment_id"?}` and returns 201 with the comment. 422 when the body is blank or the parent is not a top-level comment on this same version. |
+
+My Work rows carry `submission_id` (null until the member hands something in)
+so P10 can link straight to P14.
+
+Nothing writes submissions or reviews until SCRUM-19 and the Sprint 4 review
+cards, so seed one member's history to see the page:
+
+```bash
+python scripts/seed_submission.py amara@example.com --password "pick one"
+```
+
+It creates the organization, team, supervisor and member if they are missing,
+and prints the two `/s/{id}` links. Running it again writes nothing new.
 
 ## Tests
 
@@ -325,6 +349,7 @@ runs, so import new model modules there as they are added.
 | `db.py` | SQLAlchemy engine, session factory and declarative `Base` |
 | `alembic.ini`, `alembic/` | Migration config and scripts |
 | `scripts/create_invite.py` | Dev helper: make an invite link (goes away with SCRUM-39/42) |
+| `scripts/seed_submission.py` | Dev helper: one member's reviewed, resubmitted submission for P13 and P14 (goes away with SCRUM-19 and the Sprint 4 review cards) |
 | `tests/` | pytest suite |
 | `requirements.txt` | Pinned dependencies |
 | `requirements-dev.txt` | Dev tools on top of the runtime pins (ruff) |

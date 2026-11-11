@@ -24,6 +24,9 @@ EXPECTED_TABLES = {
     "invite",
     "password_reset_token",
     "email_verification",
+    "assessment_criterion",
+    "review_criterion_score",
+    "submission_comment",
 }
 
 
