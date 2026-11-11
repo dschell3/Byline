@@ -1,7 +1,7 @@
 """SCRUM-22 review reason, criterion scores and submission comments
 
 Revision ID: 4d2e8b7c1a90
-Revises: f3b7d9a1c5e2
+Revises: 07c3e0d206fd
 Create Date: 2026-11-07
 
 The submission page (P14) shows every version of a submission, each review
@@ -18,8 +18,7 @@ comments between member and supervisor. None of that had a home:
 review.decision also gains a check constraint for the two spellings work.py
 already relies on, the same way SCRUM-23 constrained assignment.late_policy.
 
-Revises the head at the time of writing. If SCRUM-23's 07c3e0d206fd merges
-first, this re-parents onto it (CONTRIBUTING, Migrations).
+Follows SCRUM-23's 07c3e0d206fd, which merged first (CONTRIBUTING, Migrations).
 """
 from typing import Sequence, Union
 
@@ -28,7 +27,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '4d2e8b7c1a90'
-down_revision: Union[str, Sequence[str], None] = 'f3b7d9a1c5e2'
+down_revision: Union[str, Sequence[str], None] = '07c3e0d206fd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

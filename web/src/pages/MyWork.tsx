@@ -40,6 +40,12 @@ function Row({ item, timeZone }: { item: WorkItem; timeZone: string }) {
             due.date
           )}
           {due.relative && ` (${due.relative})`} · {pointsLabel(item.points)}
+          {item.handed_in_late && (
+            <>
+              {' · '}
+              <span className="font-semibold text-status-overdue-text">Handed in late</span>
+            </>
+          )}
         </p>
       </div>
       <Badge status={item.status} />

@@ -83,6 +83,11 @@ keeps only the token's SHA-256 in `auth_session`.
 A session ends after 2 hours idle or 30 days in total, whichever comes first,
 and on sign-out. Signing in again retires the browser's previous token.
 
+Ended sessions are kept for 7 days, then deleted (SCRUM-76). The cleanup,
+`delete_old_ended_sessions()` in `sessions.py`, runs on every sign-in, so
+there is no scheduled job to set up. Sessions still in use are never touched.
+To keep them longer, change `HOW_LONG_TO_KEEP_ENDED_SESSIONS`.
+
 Roles come from `membership` on every request, never from the cookie, so a
 role change applies immediately. Protect a route with a dependency:
 
@@ -151,6 +156,40 @@ rather than writing its own query.
 
 Every timestamp is stored and compared in UTC. Whether work is overdue is decided on the server by `work.status_of`, which compares `due_at` with the current UTC time, so two people looking at the same assignment never disagree about whether it is late. The web app converts an instant to the viewer's timezone only when it renders, in `web/src/lib/time.ts`: the profile timezone (P18), else the browser's, else UTC. Relative wording ("in 3 hours", "2 days ago") is worked out in the browser from the viewer's own clock. Calendar dates such as a cohort's start and end are not instants and are not converted.
 
+## Late policy (SCRUM-23)
+
+Each assignment says what happens to work handed in after its due date.
+
+| `late_policy` | Meaning |
+| --- | --- |
+| `not_accepted` | Nothing can be handed in once the due date has passed |
+| `accepted_full_points` | Late work is still taken and worth full points |
+| `accepted_half_points` | Late work is still taken but worth half points, rounded up (15 becomes 8) |
+
+`late_cutoff_hours` is how long after the due date late work is still taken;
+empty means no cutoff. "Accepted up to 48 hours late at half points" is
+`accepted_half_points` with `48`. The database refuses any other policy and
+any cutoff below 1 hour.
+
+The rules live in one place, `late_policy.py`, so every page agrees:
+
+| Function | Answers |
+| --- | --- |
+| `was_handed_in_late(assignment, handed_in_at)` | Did it come in after the exact due moment? Compared in UTC, so 11:59:59 PM on the due date is on time wherever the intern is |
+| `last_moment_late_work_is_taken(assignment)` | When hand-ins stop being taken, or none if they never stop |
+| `can_still_be_handed_in(assignment, at)` | Will it still take a hand-in right now? Call this before accepting one (P13) |
+| `points_after_late_penalty(assignment, handed_in_at)` | What the work is worth after the policy |
+| `late_penalty_ledger_row(assignment, approved_submission, first_handed_in_at)` | The negative ledger row for the points taken off, or none |
+
+Lateness is judged on the **first** hand-in, so a resubmission the reviewer
+asked for after the deadline does not make work late. When late work is
+approved, the full award and the late penalty are two separate ledger rows,
+written in one transaction, so the intern can see what was taken off and why.
+
+My Work items carry `late_policy`, `late_cutoff_hours` and `handed_in_late`.
+In the web app, `describeLatePolicy()` in `web/src/lib/latePolicy.ts` writes
+the sentence P12 shows, with the last moment in the viewer's timezone.
+
 ## Profile (SCRUM-17)
 
 The profile page (P18) reads and writes the signed-in person's own settings.
@@ -206,6 +245,28 @@ python scripts/create_verification.py you@example.com            # confirmed, th
 python scripts/create_verification.py you@example.com --expired  # expired
 ```
 
+## Password reset (SCRUM-10)
+
+A person who forgot their password asks for a link by email, opens it (P03)
+and sets a new one. Like invites and verification, the URL carries a random
+token and `password_reset_token` stores only its SHA-256.
+
+| Endpoint | Result |
+| --- | --- |
+| `POST /auth/forgot-password` | Public. Takes `{"email"}` and returns the same 200 message whether or not the address is known, so it cannot be used to find accounts. Limited per email and per IP (`ratelimit.FailureLimiter`). |
+| `GET /auth/reset-password/{token}` | Public. Returns `{"state"}` so P03 can show the valid, expired or used screen before the form is filled. `Cache-Control: no-store`. |
+| `POST /auth/reset-password/{token}` | Public. Takes `new_password` and `confirm_password`, marks the token used and revokes every live session for that person, so a stolen session does not survive a reset. |
+
+Links last one hour (`password_reset.TOKEN_LIFETIME`) and work once. A newer
+request does not yet retire older unused links; that is SCRUM-78.
+
+Delivery is SMTP, configured by `RESET_SMTP_HOST`, `RESET_SMTP_PORT` (default
+587), `RESET_SMTP_USERNAME`, `RESET_SMTP_PASSWORD`, `RESET_SMTP_STARTTLS`
+(default true), `RESET_FROM_EMAIL` and `RESET_WEB_BASE_URL`, the web origin
+the link points at. Until they are set, the confirmation screen works but
+`reset_mail` logs a warning and sends nothing; the token is never logged.
+`RESET_WEB_BASE_URL` is not yet declared in `render.yaml` (SCRUM-75 step 2).
+Tests use a mocked SMTP transport; a real-provider delivery has not been tried.
 ## Submissions (SCRUM-22)
 
 The submission page (P14) shows every version of one member's work on an

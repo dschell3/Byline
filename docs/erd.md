@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11, `email_verification` from SCRUM-12, and `assessment_criterion`, `review_criterion_score` and `submission_comment` from SCRUM-22, with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11, `password_reset_token` from SCRUM-10, `email_verification` from SCRUM-12, and `assessment_criterion`, `review_criterion_score` and `submission_comment` from SCRUM-22, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -31,9 +31,10 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 13 | auth_session | A signed-in browser (SCRUM-13): `token_hash` (SHA-256, never the token), `last_seen_at`, `revoked_at`. | person 1–many. Unique on token_hash |
 | 14 | invite | A link to join one organization (SCRUM-11): the invitee's `email`, the `role`, cohort, track and team they join, who sent it, `token_hash`, `expires_at`, `accepted_at`, `revoked_at`. | organization 1–many, sent by a membership. Unique on token_hash |
 | 15 | email_verification | A link that confirms a person owns their email (SCRUM-12): the `person_id`, the `email` it was sent to, `token_hash`, `expires_at` (24 hours), `used_at`. | person 1–many. Unique on token_hash |
-| 16 | assessment_criterion | One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22): `position`, `text`, `max_points`. | assignment 1–many. Unique on (assignment_id, position) |
-| 17 | review_criterion_score | A review's `score` and optional `note` against one criterion (SCRUM-22). | review 1–many, assessment_criterion 1–many. Unique on (review_id, criterion_id) |
-| 18 | submission_comment | A comment between member and supervisor on one version of a submission (SCRUM-22): `body`, optional `parent_comment_id` for one level of replies. | submission 1–many, written by a membership |
+| 16 | password_reset_token | A link that lets a person set a new password (SCRUM-10): `person_id`, `token_hash`, `expires_at` (1 hour), `used_at`. | person 1–many. Unique on token_hash |
+| 17 | assessment_criterion | One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22): `position`, `text`, `max_points`. | assignment 1–many. Unique on (assignment_id, position) |
+| 18 | review_criterion_score | A review's `score` and optional `note` against one criterion (SCRUM-22). | review 1–many, assessment_criterion 1–many. Unique on (review_id, criterion_id) |
+| 19 | submission_comment | A comment between member and supervisor on one version of a submission (SCRUM-22): `body`, optional `parent_comment_id` for one level of replies. | submission 1–many, written by a membership |
 
 ## Decisions
 
@@ -68,7 +69,11 @@ so if this grows it becomes a join table.
 
 **Files** live in Cloudflare R2. `submission.file_keys` holds the object keys.
 
-**Late work.** `assignment.is_mandatory` and `assignment.late_policy` (P12). Allowed values are settled with the sheet headers.
+**Late work** (SCRUM-23, shown on P12). `assignment.late_policy` is one of `not_accepted`,
+`accepted_full_points` or `accepted_half_points`, enforced by a check constraint.
+`assignment.late_cutoff_hours` is how long after `due_at` late work is still taken (null means no
+cutoff), so "accepted up to 48 hours late at half points" is `accepted_half_points` + `48`.
+The rules that use them live in `api/late_policy.py`.
 
 **`submission.status` is a deliberate cache** of the latest final review's decision, so list pages don't need a join.
 `review` is the source of truth. The app updates both in the same transaction.
@@ -118,6 +123,7 @@ erDiagram
     organization ||--o{ invite : "sends"
     membership ||--o{ invite : "sent by"
     person ||--o{ email_verification : "confirms"
+    person ||--o{ password_reset_token : "resets via"
 
     organization {
         bigint id PK
@@ -189,7 +195,8 @@ erDiagram
         text title "NOT NULL"
         int points_value "NOT NULL"
         boolean is_mandatory "NOT NULL, default true"
-        text late_policy "NOT NULL"
+        text late_policy "NOT NULL: not_accepted | accepted_full_points | accepted_half_points"
+        int late_cutoff_hours "nullable, hours after due_at"
         timestamptz due_at
         timestamptz created_at "NOT NULL"
     }
@@ -296,6 +303,14 @@ erDiagram
         text email "NOT NULL: the address the link was sent to"
         text token_hash "NOT NULL, UNIQUE: SHA-256 of the URL token"
         timestamptz expires_at "NOT NULL: 24 hours after created_at"
+        timestamptz used_at "nullable, set once"
+        timestamptz created_at "NOT NULL"
+    }
+    password_reset_token {
+        bigint id PK
+        bigint person_id FK "NOT NULL, indexed"
+        text token_hash "NOT NULL, UNIQUE: SHA-256 of the URL token"
+        timestamptz expires_at "NOT NULL: 1 hour after created_at"
         timestamptz used_at "nullable, set once"
         timestamptz created_at "NOT NULL"
     }
