@@ -83,6 +83,11 @@ keeps only the token's SHA-256 in `auth_session`.
 A session ends after 2 hours idle or 30 days in total, whichever comes first,
 and on sign-out. Signing in again retires the browser's previous token.
 
+Ended sessions are kept for 7 days, then deleted (SCRUM-76). The cleanup,
+`delete_old_ended_sessions()` in `sessions.py`, runs on every sign-in, so
+there is no scheduled job to set up. Sessions still in use are never touched.
+To keep them longer, change `HOW_LONG_TO_KEEP_ENDED_SESSIONS`.
+
 Roles come from `membership` on every request, never from the cookie, so a
 role change applies immediately. Protect a route with a dependency:
 
