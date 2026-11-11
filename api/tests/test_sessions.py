@@ -194,6 +194,21 @@ def test_signing_in_again_retires_the_previous_token(client: TestClient) -> None
     assert client.get("/auth/me").status_code == 401
 
 
+def test_signing_in_clears_out_sessions_that_ended_over_a_week_ago(
+    client: TestClient, clock: Clock, factory: sessionmaker[Session]
+) -> None:
+    sign_in(client, MEMBER)
+    client.post("/auth/sign-out")
+    clock.advance(timedelta(days=8))
+
+    sign_in(client, SUPERVISOR)
+
+    with factory() as db:
+        people_with_a_stored_session = db.scalars(select(AuthSession.person_id)).all()
+    # The member's 8-day-old signed-out session is gone; only the new sign-in is left.
+    assert people_with_a_stored_session == [2]
+
+
 def test_a_member_cannot_reach_a_supervisor_only_endpoint(client: TestClient) -> None:
     sign_in(client, MEMBER)
     r = client.get("/review-queue")
