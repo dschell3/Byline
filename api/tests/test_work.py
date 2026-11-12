@@ -105,12 +105,33 @@ def test_an_item_carries_what_the_row_shows() -> None:
     item = group_rows([row(7, title="Competitor audit")], NOW).groups[0].items[0]
     assert item.model_dump() == {
         "id": 7,
+        "submission_id": None,
         "title": "Competitor audit",
         "set_by": "Marguerite Ellis",
         "due_at": NOW + timedelta(days=3),
         "points": 10,
         "status": "due-soon",
+        "late_policy": "accepted_full_points",
+        "late_cutoff_hours": None,
+        "handed_in_late": False,
     }
+
+
+def test_an_item_carries_its_late_policy_so_the_page_can_describe_it() -> None:
+    half_points_up_to_48_hours = Row(
+        1,
+        "Competitor audit",
+        "Marguerite Ellis",
+        NOW + timedelta(days=3),
+        15,
+        True,
+        None,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+    )
+    item = group_rows([half_points_up_to_48_hours], NOW).groups[0].items[0]
+    assert item.late_policy == "accepted_half_points"
+    assert item.late_cutoff_hours == 48
 
 
 def test_a_due_date_from_sqlite_without_a_timezone_still_compares() -> None:
@@ -300,3 +321,19 @@ def test_member_in_ist_and_supervisor_in_pst_agree_on_overdue(
     assert [i["title"] for i in theirs] == ["Competitor audit"]
     assert mine[0]["due_at"] == theirs[0]["due_at"]
     assert datetime.fromisoformat(mine[0]["due_at"]) == due
+
+
+def test_an_item_handed_in_late_says_so() -> None:
+    submitted_late = Row(
+        1,
+        "Competitor audit",
+        "Marguerite Ellis",
+        NOW - timedelta(days=2),
+        10,
+        True,
+        "submitted",
+        handed_in_late=True,
+    )
+    item = group_rows([submitted_late], NOW).groups[2].items[0]
+    assert item.status == "submitted"
+    assert item.handed_in_late is True

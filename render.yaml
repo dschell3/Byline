@@ -47,6 +47,10 @@ services:
       # created, because it is only known once byline-web exists.
       - key: SITE_URL
         sync: false
+      # The same web address, used for the links in password-reset emails
+      # (api/reset_mail.py). Also asked for when the Blueprint is created.
+      - key: RESET_WEB_BASE_URL
+        sync: false
 
   # --- React client ---------------------------------------------------------
   - type: web

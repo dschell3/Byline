@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 import assignments
 import sessions
+from late_policy import ACCEPTED_FULL_POINTS, was_handed_in_late
 from models import Membership, Person, Submission
 
 # (key, label). The keys match the status words in the web app's Badge.
@@ -43,11 +44,20 @@ CHANGES_REQUESTED = "changes_requested"
 
 class WorkItem(BaseModel):
     id: int
+    # The member's latest submission, when there is one: the P14 link (SCRUM-22).
+    submission_id: int | None
     title: str
     set_by: str
     due_at: datetime | None
     points: int
     status: str
+    # SCRUM-23: what happens if it is handed in late. The web app turns these into
+    # words (web/src/lib/latePolicy.ts); the rules live in late_policy.py.
+    late_policy: str
+    late_cutoff_hours: int | None
+    # True when the first hand-in came after the due date. A resubmission the
+    # reviewer asked for after the deadline does not make it late.
+    handed_in_late: bool
 
 
 class WorkGroup(BaseModel):
@@ -71,6 +81,10 @@ class Row:
     points: int
     is_mandatory: bool
     submission_status: str | None  # the member's latest submission, if any
+    submission_id: int | None = None
+    late_policy: str = ACCEPTED_FULL_POINTS
+    late_cutoff_hours: int | None = None
+    handed_in_late: bool = False
 
 
 def _aware(moment: datetime) -> datetime:
@@ -105,11 +119,15 @@ def group_rows(rows: list[Row], at: datetime) -> WorkResponse:
         by_key[status].append(
             WorkItem(
                 id=row.id,
+                submission_id=row.submission_id,
                 title=row.title,
                 set_by=row.set_by,
                 due_at=row.due_at,
                 points=row.points,
                 status=status,
+                late_policy=row.late_policy,
+                late_cutoff_hours=row.late_cutoff_hours,
+                handed_in_late=row.handed_in_late,
             )
         )
     return WorkResponse(
@@ -124,13 +142,22 @@ def load_rows(db: Session, member: Membership) -> list[Row]:
     """
     rows = []
     for assignment in assignments.assignments_for(db, member):
-        latest = db.scalar(
-            select(Submission.status)
+        latest = db.execute(
+            select(Submission.id, Submission.status)
             .where(
                 Submission.assignment_id == assignment.id,
                 Submission.membership_id == member.id,
             )
             .order_by(Submission.version.desc())
+            .limit(1)
+        ).first()
+        first_handed_in_at = db.scalar(
+            select(Submission.submitted_at)
+            .where(
+                Submission.assignment_id == assignment.id,
+                Submission.membership_id == member.id,
+            )
+            .order_by(Submission.version.asc())
             .limit(1)
         )
         set_by = db.scalar(
@@ -146,7 +173,12 @@ def load_rows(db: Session, member: Membership) -> list[Row]:
                 due_at=assignment.due_at,
                 points=assignment.points_value,
                 is_mandatory=assignment.is_mandatory,
-                submission_status=latest,
+                submission_status=latest.status if latest else None,
+                submission_id=latest.id if latest else None,
+                late_policy=assignment.late_policy,
+                late_cutoff_hours=assignment.late_cutoff_hours,
+                handed_in_late=first_handed_in_at is not None
+                and was_handed_in_late(assignment, first_handed_in_at),
             )
         )
     return rows
@@ -157,18 +189,22 @@ def for_member(db: Session, member: Membership) -> WorkResponse:
     return group_rows(load_rows(db, member), sessions.now())
 
 
+def supervising_membership(db: Session, caller: Person, organization_id: int) -> Membership | None:
+    """The caller's active supervisor or admin membership in ``organization_id``, if any."""
+    return db.scalar(
+        select(Membership)
+        .where(
+            Membership.person_id == caller.id,
+            Membership.is_active.is_(True),
+            Membership.organization_id == organization_id,
+            Membership.role.in_(("supervisor", "admin")),
+        )
+        .order_by(Membership.id)
+    )
+
+
 def can_view(db: Session, caller: Person, target: Membership) -> bool:
     """Your own work, or anyone's in an organization where you supervise or administer."""
     if target.person_id == caller.id:
         return True
-    return (
-        db.scalar(
-            select(Membership.id).where(
-                Membership.person_id == caller.id,
-                Membership.is_active.is_(True),
-                Membership.organization_id == target.organization_id,
-                Membership.role.in_(("supervisor", "admin")),
-            )
-        )
-        is not None
-    )
+    return supervising_membership(db, caller, target.organization_id) is not None
