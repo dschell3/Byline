@@ -94,7 +94,7 @@ export default function SignInPage() {
 
             {problem && <ProblemNotice problem={problem} />}
 
-            <Button type="submit" className="w-full !text-body !font-semibold" loading={loading}>
+            <Button type="submit" className="w-full" loading={loading}>
               Sign in
             </Button>
           </form>

@@ -163,7 +163,7 @@ function JoinForm({ invite, token }: { invite: Invite; token: string }) {
 
       {problem && <ProblemNotice problem={problem} />}
 
-      <Button type="submit" className="w-full !text-body !font-semibold" loading={loading}>
+      <Button type="submit" className="w-full" loading={loading}>
         Join the program
       </Button>
 
