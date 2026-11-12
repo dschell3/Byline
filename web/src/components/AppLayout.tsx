@@ -128,6 +128,7 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [home, setHome] = useState<Home | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
 
   // The org and cohort cards are a nicety: if this fails the shell still works.
   useEffect(() => {
@@ -140,16 +141,40 @@ export default function AppLayout() {
     };
   }, []);
 
-  // Escape closes the phone drawer and hands focus back to the menu button.
+  // Phone drawer: focus moves in on open, Tab stays inside it, Escape closes and
+  // hands focus back to the menu button, and the page behind stops scrolling.
   useEffect(() => {
     if (!menuOpen) return;
+    const drawer = sidebar.current;
+    const focusable = () =>
+      Array.from(drawer?.querySelectorAll<HTMLElement>('a[href], button') ?? []);
+    focusable()[0]?.focus();
+    const scroll = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     function onKey(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return;
-      setMenuOpen(false);
-      menuButton.current?.focus();
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+        menuButton.current?.focus();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = scroll;
+    };
   }, [menuOpen]);
 
   async function handleSignOut() {
@@ -173,8 +198,9 @@ export default function AppLayout() {
 
       <aside
         id="app-sidebar"
+        ref={sidebar}
         className={`${
-          menuOpen ? 'fixed' : 'hidden'
+          menuOpen ? 'fixed flex' : 'hidden'
         } inset-y-0 left-0 z-30 w-[245px] flex-col gap-4 overflow-y-auto border-r border-line bg-surface py-5 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0`}
       >
         <div className="px-5">

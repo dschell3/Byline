@@ -34,6 +34,7 @@ export function pageTitle(pathname: string): string {
   if (pathname === '/') return 'My work';
   if (pathname.startsWith('/byline')) return 'My byline';
   if (pathname.startsWith('/updates')) return 'Updates';
+  if (pathname.startsWith('/s/')) return 'Submission';
   if (pathname.startsWith('/me')) return 'Profile & settings';
   return 'Byline';
 }

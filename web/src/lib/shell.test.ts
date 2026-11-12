@@ -55,6 +55,7 @@ describe('pageTitle', () => {
     expect(pageTitle('/byline')).toBe('My byline');
     expect(pageTitle('/updates')).toBe('Updates');
     expect(pageTitle('/me')).toBe('Profile & settings');
+    expect(pageTitle('/s/42')).toBe('Submission');
     expect(pageTitle('/anything-else')).toBe('Byline');
   });
 });
