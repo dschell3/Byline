@@ -139,3 +139,46 @@ def test_token_cannot_be_reused(
 
         person = db.get(Person, 1)
         assert verify_password(NEW_PASSWORD, person.password_hash)
+
+
+def test_new_reset_request_retires_older_link(
+    factory: sessionmaker[Session],
+) -> None:
+    """Requesting a new link makes the previous link unusable."""
+    with factory() as db:
+        older = issue_reset_token(db, 1)
+
+        assert get_reset_state(db, older) == ResetState.VALID
+
+        newer = issue_reset_token(db, 1)
+
+        assert get_reset_state(db, older) == ResetState.USED
+        assert redeem_reset_token(db, older, NEW_PASSWORD) == ResetState.USED
+        assert get_reset_state(db, newer) == ResetState.VALID
+
+
+def test_successful_reset_retires_other_unused_links(
+    factory: sessionmaker[Session],
+) -> None:
+    """A completed reset makes every other outstanding link unusable."""
+    with factory() as db:
+        token = issue_reset_token(db, 1)
+
+        # Simulate a second outstanding token for the same account.
+        other_token = "another-outstanding-test-token"
+        db.add(
+            PasswordResetToken(
+                person_id=1,
+                token_hash=sha256(other_token.encode()).hexdigest(),
+                expires_at=datetime.now(UTC) + TOKEN_LIFETIME,
+            )
+        )
+        db.commit()
+
+        assert get_reset_state(db, other_token) == ResetState.VALID
+
+        assert redeem_reset_token(db, token, NEW_PASSWORD) == ResetState.SUCCESS
+
+        assert get_reset_state(db, token) == ResetState.USED
+        assert get_reset_state(db, other_token) == ResetState.USED
+        assert redeem_reset_token(db, other_token, "different-password-123") == ResetState.USED
