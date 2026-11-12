@@ -76,6 +76,8 @@ cutoff), so "accepted up to 48 hours late at half points" is `accepted_half_poin
 The rules that use them live in `api/late_policy.py`.
 
 **`submission.status` is a deliberate cache** of the latest final review's decision, so list pages don't need a join.
+
+**`submission.status` values** (SCRUM-14): `submitted` (handed in, no final review yet), `changes_requested`, `approved`. Snake_case, and the only strings anything should write or read. Due soon, optional and overdue are not statuses: My Work works them out from the assignment (no submission yet, `due_at`, `is_mandatory`).
 `review` is the source of truth. The app updates both in the same transaction.
 
 **Review history (SCRUM-22).** `review.decision` is `approved` or `changes_requested`, enforced by a check constraint, the two spellings `work.py` groups My Work by. `review.reason` is the written reason behind it, nullable for AI drafts and older rows (SCRUM-27 makes it required when changes are requested). Criteria live on the assignment (`assessment_criterion`, what P12 renders as the checklist) and scores on the review (`review_criterion_score`, one row per criterion), so two reviews of two versions are scored against the same list. Comments hang off one submission version, not the assignment, so each version's thread reads with that version's review; a reply points at a top-level comment on the same submission.
