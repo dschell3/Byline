@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { dueLabel, fetchWork, pointsLabel, type WorkGroup, type WorkItem } from '../lib/work';
@@ -20,7 +21,15 @@ function Row({ item, timeZone }: { item: WorkItem; timeZone: string }) {
       }`}
     >
       <div className="min-w-0">
-        <p className="m-0 text-card-title text-ink">{item.title}</p>
+        <p className="m-0 text-card-title text-ink">
+          {item.submission_id === null ? (
+            item.title
+          ) : (
+            <Link to={`/s/${item.submission_id}`} className="text-ink no-underline hover:underline">
+              {item.title}
+            </Link>
+          )}
+        </p>
         <p className="m-0 mt-0.5 text-meta text-ink-meta">
           Set by {item.set_by} ·{' '}
           {item.due_at ? (
@@ -31,6 +40,12 @@ function Row({ item, timeZone }: { item: WorkItem; timeZone: string }) {
             due.date
           )}
           {due.relative && ` (${due.relative})`} · {pointsLabel(item.points)}
+          {item.handed_in_late && (
+            <>
+              {' · '}
+              <span className="font-semibold text-status-overdue-text">Handed in late</span>
+            </>
+          )}
         </p>
       </div>
       <Badge status={item.status} />

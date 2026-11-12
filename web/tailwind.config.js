@@ -62,6 +62,9 @@ export default {
         'card-title': ['16px', { lineHeight: '22px', fontWeight: '600' }],
         body: ['14px', { lineHeight: '21px', fontWeight: '400' }],
         meta: ['12px', { lineHeight: '18px', fontWeight: '500' }],
+        // SCRUM-80: button labels from the Figma foundations/P01 buttons.
+        button: ['14px', { lineHeight: '20px', fontWeight: '600' }],
+        'button-sm': ['13px', { lineHeight: '20px', fontWeight: '600' }],
       },
       height: {
         btn: '44px', // full size, the phone tap target

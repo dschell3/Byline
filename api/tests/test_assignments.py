@@ -1,4 +1,4 @@
-"""SCRUM-16: the rule for who an assignment reaches.
+"""SCRUM-16: the rule for who an assignment reaches. SCRUM-23: the late policy checks.
 
 Needs Postgres, because picked recipients are a Postgres array. Runs when
 DATABASE_URL is set and skips otherwise, like test_ledger.py. Each test runs
@@ -7,14 +7,28 @@ inside a transaction that is rolled back.
 
 import os
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import work
 from assignments import has_assigned_work
 from db import as_psycopg_url
-from models import Assignment, Cohort, Membership, Organization, Person, Team, Track
+from late_policy import late_penalty_ledger_row
+from models import (
+    Assignment,
+    Cohort,
+    Membership,
+    Organization,
+    Person,
+    PointsLedger,
+    Submission,
+    Team,
+    Track,
+)
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"), reason="needs a Postgres at DATABASE_URL"
@@ -82,19 +96,24 @@ def world(session: Session) -> dict[str, object]:
     }
 
 
-def post(session: Session, world: dict[str, object], **targets: object) -> None:
+def post(
+    session: Session,
+    world: dict[str, object],
+    late_policy: str = "accepted_full_points",
+    **targets: object,
+) -> Assignment:
     """Add one assignment in the first organization with the given targets."""
-    session.add(
-        Assignment(
-            organization_id=world["org"].id,
-            created_by_membership_id=world["supervisor"].id,
-            title="Homework",
-            points_value=10,
-            late_policy="accept",
-            **targets,
-        )
+    assignment = Assignment(
+        organization_id=world["org"].id,
+        created_by_membership_id=world["supervisor"].id,
+        title="Homework",
+        points_value=10,
+        late_policy=late_policy,
+        **targets,
     )
+    session.add(assignment)
     session.flush()
+    return assignment
 
 
 def test_nothing_assigned_yet(session: Session, world: dict[str, object]) -> None:
@@ -154,9 +173,129 @@ def test_another_organization_never_counts(session: Session, world: dict[str, ob
             created_by_membership_id=other_supervisor.id,
             title="Not yours",
             points_value=10,
-            late_policy="accept",
+            late_policy="accepted_full_points",
             recipient_membership_ids=[world["member"].id],
         )
     )
     session.flush()
     assert has_assigned_work(session, world["member"]) is False
+
+
+def test_half_points_up_to_48_hours_late_can_be_stored(
+    session: Session, world: dict[str, object]
+) -> None:
+    post(
+        session,
+        world,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+        team_id=world["design"].id,
+    )
+
+
+def test_the_database_refuses_a_late_policy_it_does_not_know(
+    session: Session, world: dict[str, object]
+) -> None:
+    with pytest.raises(IntegrityError, match="ck_assignment_late_policy"):
+        post(session, world, late_policy="maybe", team_id=world["design"].id)
+
+
+def test_the_database_refuses_a_late_cutoff_of_zero_hours(
+    session: Session, world: dict[str, object]
+) -> None:
+    with pytest.raises(IntegrityError, match="ck_assignment_late_cutoff_hours"):
+        post(session, world, late_cutoff_hours=0, team_id=world["design"].id)
+
+
+def test_my_work_rows_carry_the_late_policy_stored_on_the_assignment(
+    session: Session, world: dict[str, object]
+) -> None:
+    post(
+        session,
+        world,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+        team_id=world["design"].id,
+    )
+    [row] = work.load_rows(session, world["member"])
+    assert row.late_policy == "accepted_half_points"
+    assert row.late_cutoff_hours == 48
+
+
+DUE = datetime(2026, 11, 13, 23, 59, 59, tzinfo=UTC)
+
+
+def hand_in(
+    session: Session, world: dict[str, object], assignment: Assignment, version: int, at: datetime
+) -> Submission:
+    """The intern hands in a version of their work at the moment ``at``."""
+    submission = Submission(
+        assignment_id=assignment.id,
+        membership_id=world["member"].id,
+        version=version,
+        status="submitted",
+        submitted_at=at,
+    )
+    session.add(submission)
+    session.flush()
+    return submission
+
+
+def test_work_handed_in_before_the_deadline_is_not_flagged_late(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(session, world, team_id=world["design"].id, due_at=DUE)
+    hand_in(session, world, assignment, version=1, at=DUE - timedelta(hours=1))
+    [row] = work.load_rows(session, world["member"])
+    assert row.handed_in_late is False
+
+
+def test_work_handed_in_after_the_deadline_is_flagged_late(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(session, world, team_id=world["design"].id, due_at=DUE)
+    hand_in(session, world, assignment, version=1, at=DUE + timedelta(hours=1))
+    [row] = work.load_rows(session, world["member"])
+    assert row.handed_in_late is True
+
+
+def test_a_requested_resubmission_after_the_deadline_does_not_make_it_late(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(session, world, team_id=world["design"].id, due_at=DUE)
+    hand_in(session, world, assignment, version=1, at=DUE - timedelta(hours=1))
+    hand_in(session, world, assignment, version=2, at=DUE + timedelta(days=2))
+    [row] = work.load_rows(session, world["member"])
+    assert row.handed_in_late is False
+
+
+def test_a_late_penalty_is_its_own_ledger_row_and_the_total_is_half(
+    session: Session, world: dict[str, object]
+) -> None:
+    assignment = post(
+        session,
+        world,
+        late_policy="accepted_half_points",
+        late_cutoff_hours=48,
+        team_id=world["design"].id,
+        due_at=DUE,
+    )
+    late_by_an_hour = DUE + timedelta(hours=1)
+    approved = hand_in(session, world, assignment, version=1, at=late_by_an_hour)
+
+    full_award = PointsLedger(
+        membership_id=world["member"].id,
+        submission_id=approved.id,
+        amount=assignment.points_value,
+        reason="Approved",
+        actor_type="system",
+    )
+    penalty = late_penalty_ledger_row(assignment, approved, first_handed_in_at=late_by_an_hour)
+    session.add_all([full_award, penalty])
+    session.flush()
+
+    amounts = session.scalars(
+        select(PointsLedger.amount).where(PointsLedger.membership_id == world["member"].id)
+    ).all()
+    assert sorted(amounts) == [-5, 10]
+    assert sum(amounts) == 5

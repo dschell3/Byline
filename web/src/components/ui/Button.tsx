@@ -4,9 +4,9 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type Size = 'md' | 'sm';
 
 // SCRUM-71: buttons from the Figma foundations page.
-// md is 44px (the phone tap target), sm is 36px.
+// md is 44px (the phone tap target) with a 14px/600 label; sm is 36px with a 13px/600 label.
 const base =
-  'inline-flex items-center justify-center gap-2 rounded-md px-4 text-card-title transition-colors ' +
+  'inline-flex items-center justify-center gap-2 rounded-md px-4 transition-colors ' +
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ' +
   'disabled:cursor-not-allowed';
 
@@ -19,8 +19,8 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  md: 'h-btn',
-  sm: 'h-btn-sm px-3',
+  md: 'h-btn text-button',
+  sm: 'h-btn-sm px-3 text-button-sm',
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

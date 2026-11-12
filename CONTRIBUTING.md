@@ -74,6 +74,23 @@ SCRUM-64 chore(web): ESLint Airbnb config and Prettier
 - During review, push fixes as **new commits**. Don't amend or force-push, so reviewers can see what changed.
 - Small PRs merged often beat one big one at the end of the sprint.
 
+## Migrations
+
+Two branches that each add a migration off the same parent merge cleanly in
+git and then break `alembic upgrade head`, which is the API's start command on
+Render. CI does not run Alembic, so a green check does not catch it (#26).
+
+Before you merge a PR that adds a migration:
+
+1. Merge the latest `main` into your branch.
+2. From `api/`, run `alembic heads`. It must print exactly one revision.
+3. If it prints two, set your migration's `down_revision` to the other head,
+   re-run `alembic upgrade head` on a fresh database, and push the fix as a
+   new commit.
+
+Whoever merges second re-parents. Say in the PR body which revision yours
+follows.
+
 ## Stuck or blocked
 
 Blocked on someone else's card? Say so in Discord with the card number. Stuck for more than 30 minutes? Ask the channel.
