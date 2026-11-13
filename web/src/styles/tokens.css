@@ -11,7 +11,7 @@
   --color-line-strong: 211 217 208; /* #D3D9D0 */
   --color-ink: 38 59 57; /* #263B39 */
   --color-ink-body: 63 82 80; /* #3F5250 */
-  --color-ink-meta: 107 122 118; /* #6B7A76 */
+  --color-ink-meta: 97 113 109; /* #61716D. Draft is #6B7A76 (4.2:1); darkened to 4.8:1 after Lyric asked for a readability check */
   --color-primary: 40 81 65; /* #285141 */
   --color-primary-hover: 23 63 48; /* #173F30 */
   --color-on-primary: 255 255 255;
@@ -34,17 +34,19 @@
   --status-approved-text: 30 90 58; /* #1E5A3A */
   --status-approved-fill: 210 230 215; /* #D2E6D7 */
 
-  /* The navy brand panel (P01 and other public pages). Navy in both themes, so dark mode does not redefine these. */
-  --navy: 15 29 51; /* #0F1D33 */
+  /* The brand panel on the public pages (P01 sign-in, P05 invite). Emerson green since SCRUM-81
+     (Lyric's review, item 2); the names keep "navy" so BrandPanel and BylineMark need no edit.
+     The same in both themes, so dark mode does not redefine these. */
+  --navy: 40 81 65; /* #285141, the theme's primary green */
   --navy-heading: 255 255 255;
-  --navy-body: 175 192 214; /* #AFC0D6 */
-  --navy-quote: 198 213 232; /* #C6D5E8 */
-  --navy-meta: 143 164 192; /* #8FA4C0 */
-  --navy-footer: 122 143 172; /* #7A8FAC */
-  --navy-rule: 44 72 112; /* #2C4870 */
-  --navy-bar: 62 95 140; /* #3E5F8C */
-  --navy-accent: 140 130 228; /* #8C82E4 */
-  --navy-check: 127 227 168; /* #7FE3A8 */
+  --navy-body: 201 216 207; /* #C9D8CF, 6.1:1 */
+  --navy-quote: 221 231 224; /* #DDE7E0 */
+  --navy-meta: 169 191 179; /* #A9BFB3, 4.6:1 */
+  --navy-footer: 169 191 179; /* #A9BFB3 */
+  --navy-rule: 59 101 83; /* #3B6553 */
+  --navy-bar: 82 125 105; /* #527D69 */
+  --navy-accent: 212 184 128; /* #D4B880, the theme gold lifted to 4.7:1 for the eyebrow */
+  --navy-check: 166 220 185; /* #A6DCB9 */
 }
 
 [data-theme='dark'] {

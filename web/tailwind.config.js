@@ -34,7 +34,7 @@ export default {
           DEFAULT: token('color-accent'),
           deep: token('color-accent-deep'),
         },
-        // Always-navy brand panel, the same in light and dark (P01)
+        // Brand panel on the public pages, the same in light and dark. Emerson green since SCRUM-81; the name stays navy
         navy: {
           DEFAULT: token('navy'),
           heading: token('navy-heading'),
