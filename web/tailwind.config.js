@@ -9,14 +9,17 @@ export default {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
-      // Palette "Cloud & Navy", from the Figma "Byline — design foundations" page
+      // SCRUM-81: palette is Lyric's Emerson theme (draft option A); the values live in tokens.css
       colors: {
         page: token('color-page'),
         surface: {
           DEFAULT: token('color-surface'),
           recessed: token('color-surface-recessed'),
         },
-        line: token('color-line'),
+        line: {
+          DEFAULT: token('color-line'),
+          strong: token('color-line-strong'),
+        },
         ink: {
           DEFAULT: token('color-ink'),
           body: token('color-ink-body'),
@@ -24,10 +27,14 @@ export default {
         },
         primary: {
           DEFAULT: token('color-primary'),
+          hover: token('color-primary-hover'),
           on: token('color-on-primary'),
         },
-        accent: token('color-accent'),
-        // Always-navy brand panel, the same in light and dark (P01)
+        accent: {
+          DEFAULT: token('color-accent'),
+          deep: token('color-accent-deep'),
+        },
+        // Brand panel on the public pages, the same in light and dark. Emerson green since SCRUM-81; the name stays navy
         navy: {
           DEFAULT: token('navy'),
           heading: token('navy-heading'),
@@ -47,19 +54,24 @@ export default {
           'due-soon': { text: token('status-due-soon-text'), fill: token('status-due-soon-fill') },
           optional: { text: token('status-optional-text'), fill: token('status-optional-fill') },
           submitted: { text: token('status-submitted-text'), fill: token('status-submitted-fill') },
-          changes: { text: token('status-changes-text'), fill: token('status-changes-fill') },
+          changes: {
+            text: token('status-changes-text'),
+            fill: token('status-changes-fill'),
+            dot: token('status-changes-dot'),
+          },
           overdue: { text: token('status-overdue-text'), fill: token('status-overdue-fill') },
           approved: { text: token('status-approved-text'), fill: token('status-approved-fill') },
         },
       },
       fontFamily: {
-        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
-        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        // SCRUM-81: Emerson type. Libre Caslon Display ships in regular (400) only.
+        serif: ['"Libre Caslon Display"', 'Georgia', 'serif'],
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        'page-title': ['32px', { lineHeight: '40px', fontWeight: '600' }],
-        section: ['22px', { lineHeight: '28px', fontWeight: '600' }],
-        'card-title': ['16px', { lineHeight: '22px', fontWeight: '600' }],
+        'page-title': ['40px', { lineHeight: '46px', letterSpacing: '-0.02em', fontWeight: '400' }],
+        section: ['20px', { lineHeight: '26px', fontWeight: '400' }],
+        'card-title': ['15px', { lineHeight: '21px', fontWeight: '600' }],
         body: ['14px', { lineHeight: '21px', fontWeight: '400' }],
         meta: ['12px', { lineHeight: '18px', fontWeight: '500' }],
         // SCRUM-80: button labels from the Figma foundations/P01 buttons.
