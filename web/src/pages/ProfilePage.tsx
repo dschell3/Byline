@@ -21,7 +21,9 @@ import {
   type ProfileForm,
 } from '../lib/profile';
 
-// "/me" (SCRUM-17): the signed-in person's own settings. P18 on desktop, X18 on phones.
+// "/me" (SCRUM-17, layout finished in SCRUM-79): the signed-in person's own settings.
+// P18 on desktop: two columns, About you on the left, Public byline and Email on the right.
+// X18 on phones: one column.
 // Changing the timezone sends the person back to "/" so every date there is read again in the
 // new zone; RequireAuth re-reads who they are on each navigation, so nothing else is needed.
 
@@ -186,11 +188,17 @@ function ProfileEditor({ profile }: { profile: Profile }) {
 
   return (
     <main className="flex-1 px-4 pb-12 pt-6 lg:px-14 lg:pt-14">
-      <div className="max-w-[720px]">
-        <div className="flex items-center gap-4">
+      <div className="max-w-[1080px]">
+        <h1 className="m-0 text-page-title tracking-[-0.01em]">Profile and settings</h1>
+        {/* TODO(SCRUM-79): match this subtitle to the P18 frame text. */}
+        <p className="m-0 mt-1 text-body text-ink-body">
+          Your details, your timezone, and what we email you.
+        </p>
+
+        <div className="mt-6 flex items-center gap-4">
           <Avatar key={saved.photo_url ?? ''} name={saved.full_name} url={saved.photo_url} />
           <div className="min-w-0">
-            <h1 className="m-0 truncate text-page-title tracking-[-0.01em]">{saved.full_name}</h1>
+            <p className="m-0 truncate text-[16px] font-semibold text-ink">{saved.full_name}</p>
             <p className="m-0 truncate text-meta text-ink-meta">{saved.email}</p>
           </div>
         </div>
@@ -200,115 +208,125 @@ function ProfileEditor({ profile }: { profile: Profile }) {
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-          <Card className="!p-6">
-            <h2 className={SECTION_TITLE}>About you</h2>
-            <div className="mt-4 grid gap-4">
-              <Input
-                label="Display name"
-                value={form.full_name}
-                onChange={(event) => update('full_name', event.target.value)}
-                error={fieldError('full_name')}
-                autoComplete="name"
-              />
-              <Input
-                label="Photo link"
-                value={form.photo_url}
-                onChange={(event) => update('photo_url', event.target.value)}
-                hint="A link to a picture, starting with https://. Uploading a photo comes later."
-                error={fieldError('photo_url')}
-                inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-          </Card>
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            {/* Left column: About you */}
+            <div className="flex flex-col gap-4">
+              <Card className="!p-6">
+                <h2 className={SECTION_TITLE}>About you</h2>
+                <div className="mt-4 grid gap-4">
+                  <Input
+                    label="Display name"
+                    value={form.full_name}
+                    onChange={(event) => update('full_name', event.target.value)}
+                    error={fieldError('full_name')}
+                    autoComplete="name"
+                  />
+                  <Input
+                    label="Photo link"
+                    value={form.photo_url}
+                    onChange={(event) => update('photo_url', event.target.value)}
+                    hint="A link to a picture, starting with https://. Uploading a photo comes later."
+                    error={fieldError('photo_url')}
+                    inputMode="url"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+              </Card>
 
-          <Card className="!p-6">
-            <h2 className={SECTION_TITLE}>Your timezone</h2>
-            <div className="mt-4">
-              <Input
-                label="Timezone"
-                list="timezones"
-                value={form.timezone}
-                onChange={(event) => update('timezone', event.target.value)}
-                hint={zoneHint}
-                error={fieldError('timezone')}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <datalist id="timezones">
-                {zones.map((zone) => (
-                  <option key={zone} value={zone} aria-label={zone} />
-                ))}
-              </datalist>
-            </div>
-          </Card>
+              <Card className="!p-6">
+                <h2 className={SECTION_TITLE}>Your timezone</h2>
+                <div className="mt-4">
+                  <Input
+                    label="Timezone"
+                    list="timezones"
+                    value={form.timezone}
+                    onChange={(event) => update('timezone', event.target.value)}
+                    hint={zoneHint}
+                    error={fieldError('timezone')}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <datalist id="timezones">
+                    {zones.map((zone) => (
+                      <option key={zone} value={zone} aria-label={zone} />
+                    ))}
+                  </datalist>
+                </div>
+              </Card>
 
-          <Card className="!p-6">
-            <h2 className={SECTION_TITLE}>How to reach you</h2>
-            <div className="mt-4 grid gap-4">
-              <Select
-                label="Preferred way to be contacted"
-                value={form.contact_preference}
-                onChange={(event) =>
-                  update('contact_preference', event.target.value as ContactPreference)
-                }
-                error={fieldError('contact_preference')}
-              >
-                <option value="email">Email</option>
-                <option value="discord">Discord</option>
-                <option value="phone">Phone</option>
-              </Select>
-              {form.contact_preference !== 'email' && (
-                <Input
-                  label={form.contact_preference === 'discord' ? 'Discord handle' : 'Phone number'}
-                  value={form.contact_detail}
-                  onChange={(event) => update('contact_detail', event.target.value)}
-                  error={fieldError('contact_detail')}
-                  autoComplete="off"
-                />
-              )}
+              <Card className="!p-6">
+                <h2 className={SECTION_TITLE}>How to reach you</h2>
+                <div className="mt-4 grid gap-4">
+                  <Select
+                    label="Preferred way to be contacted"
+                    value={form.contact_preference}
+                    onChange={(event) =>
+                      update('contact_preference', event.target.value as ContactPreference)
+                    }
+                    error={fieldError('contact_preference')}
+                  >
+                    <option value="email">Email</option>
+                    <option value="discord">Discord</option>
+                    <option value="phone">Phone</option>
+                  </Select>
+                  {form.contact_preference !== 'email' && (
+                    <Input
+                      label={
+                        form.contact_preference === 'discord' ? 'Discord handle' : 'Phone number'
+                      }
+                      value={form.contact_detail}
+                      onChange={(event) => update('contact_detail', event.target.value)}
+                      error={fieldError('contact_detail')}
+                      autoComplete="off"
+                    />
+                  )}
+                </div>
+              </Card>
             </div>
-          </Card>
 
-          <Card className="!p-6">
-            <h2 className={SECTION_TITLE}>Email</h2>
-            <p className="m-0 mt-2 text-body text-ink-body">
-              Account emails such as password resets always send.
-            </p>
-            <div className="mt-4 flex flex-col gap-4">
-              <Check
-                label="New and reviewed work"
-                hint="When work is assigned to you, reviewed or approved."
-                checked={form.email_assignments}
-                onChange={(checked) => update('email_assignments', checked)}
-              />
-              <Check
-                label="Reminders"
-                hint="When something is due soon."
-                checked={form.email_reminders}
-                onChange={(checked) => update('email_reminders', checked)}
-              />
-              <Check
-                label="Weekly summary"
-                hint="One email a week with where you stand."
-                checked={form.email_digest}
-                onChange={(checked) => update('email_digest', checked)}
-              />
-            </div>
-          </Card>
+            {/* Right column: Public byline, then Email */}
+            <div className="flex flex-col gap-4">
+              <Card className="!p-6">
+                <h2 className={SECTION_TITLE}>Public byline</h2>
+                <div className="mt-4">
+                  <Switch
+                    label="Show my name on my public byline"
+                    hint="Off by default. Your public byline page shows the same setting, so changing it here changes it there."
+                    on={form.public_byline_consent}
+                    onChange={(on) => update('public_byline_consent', on)}
+                  />
+                </div>
+              </Card>
 
-          <Card className="!p-6">
-            <h2 className={SECTION_TITLE}>Public byline</h2>
-            <div className="mt-4">
-              <Switch
-                label="Show my name on my public byline"
-                hint="Off by default. Your public byline page shows the same setting, so changing it here changes it there."
-                on={form.public_byline_consent}
-                onChange={(on) => update('public_byline_consent', on)}
-              />
+              <Card className="!p-6">
+                <h2 className={SECTION_TITLE}>Email</h2>
+                <p className="m-0 mt-2 text-body text-ink-body">
+                  Account emails such as password resets always send.
+                </p>
+                <div className="mt-4 flex flex-col gap-4">
+                  <Check
+                    label="New and reviewed work"
+                    hint="When work is assigned to you, reviewed or approved."
+                    checked={form.email_assignments}
+                    onChange={(checked) => update('email_assignments', checked)}
+                  />
+                  <Check
+                    label="Reminders"
+                    hint="When something is due soon."
+                    checked={form.email_reminders}
+                    onChange={(checked) => update('email_reminders', checked)}
+                  />
+                  <Check
+                    label="Weekly summary"
+                    hint="One email a week with where you stand."
+                    checked={form.email_digest}
+                    onChange={(checked) => update('email_digest', checked)}
+                  />
+                </div>
+              </Card>
             </div>
-          </Card>
+          </div>
 
           {problem && <ProblemNotice problem={problem} />}
 
@@ -352,7 +370,7 @@ export default function ProfilePage() {
   if (!state.profile) {
     return (
       <main className="flex-1 px-4 py-10 lg:px-14">
-        <h1 className="m-0 text-page-title">Your profile</h1>
+        <h1 className="m-0 text-page-title">Profile and settings</h1>
         <p className="m-0 mt-2 text-body text-ink-body">
           You are not part of an organization yet. Use the invite link your supervisor emailed you.
         </p>
