@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { ProblemNotice, type Problem } from '../components/ProblemNotice';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -22,8 +22,8 @@ import {
 } from '../lib/profile';
 
 // "/me" (SCRUM-17, layout finished in SCRUM-79): the signed-in person's own settings.
-// P18 on desktop: two columns, About you on the left, Public byline and Email on the right.
-// X18 on phones: one column.
+// P18 on desktop: About you on the left; Public byline and Email on the right.
+// X18 on phones: one column in the same order.
 // Changing the timezone sends the person back to "/" so every date there is read again in the
 // new zone; RequireAuth re-reads who they are on each navigation, so nothing else is needed.
 
@@ -188,157 +188,167 @@ function ProfileEditor({ profile }: { profile: Profile }) {
 
   return (
     <main className="flex-1 px-4 pb-12 pt-6 lg:px-14 lg:pt-14">
-      <div className="max-w-[1080px]">
+      <div className="max-w-[1280px]">
         <h1 className="m-0 text-page-title tracking-[-0.01em]">Profile and settings</h1>
-        {/* TODO(SCRUM-79): match this subtitle to the P18 frame text. */}
-        <p className="m-0 mt-1 text-body text-ink-body">
-          Your details, your timezone, and what we email you.
+        <p className="m-0 mt-2 text-body text-ink-body">
+          Your timezone drives every due date and reminder you see, so it is worth getting right.
         </p>
 
-        <div className="mt-6 flex items-center gap-4">
-          <Avatar key={saved.photo_url ?? ''} name={saved.full_name} url={saved.photo_url} />
-          <div className="min-w-0">
-            <p className="m-0 truncate text-[16px] font-semibold text-ink">{saved.full_name}</p>
-            <p className="m-0 truncate text-meta text-ink-meta">{saved.email}</p>
-          </div>
-        </div>
-        <p className="m-0 mt-3 text-meta text-ink-meta">
-          Your email cannot be changed here yet. Changing it will need a check that the new address
-          is yours.
-        </p>
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start"
+        >
+          {/* Left column: About you, with Save */}
+          <Card className="!p-6 lg:!p-8">
+            <h2 className={SECTION_TITLE}>About you</h2>
 
-        <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            {/* Left column: About you */}
-            <div className="flex flex-col gap-4">
-              <Card className="!p-6">
-                <h2 className={SECTION_TITLE}>About you</h2>
-                <div className="mt-4 grid gap-4">
-                  <Input
-                    label="Display name"
-                    value={form.full_name}
-                    onChange={(event) => update('full_name', event.target.value)}
-                    error={fieldError('full_name')}
-                    autoComplete="name"
-                  />
-                  <Input
-                    label="Photo link"
-                    value={form.photo_url}
-                    onChange={(event) => update('photo_url', event.target.value)}
-                    hint="A link to a picture, starting with https://. Uploading a photo comes later."
-                    error={fieldError('photo_url')}
-                    inputMode="url"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                </div>
-              </Card>
+            <div className="mt-5 flex items-center gap-4">
+              <Avatar key={saved.photo_url ?? ''} name={saved.full_name} url={saved.photo_url} />
+              <div className="min-w-0">
+                <p className="m-0 truncate text-[16px] font-semibold text-ink">{saved.full_name}</p>
+                <p className="m-0 truncate text-meta text-ink-meta">{saved.email}</p>
+              </div>
+            </div>
 
-              <Card className="!p-6">
-                <h2 className={SECTION_TITLE}>Your timezone</h2>
-                <div className="mt-4">
-                  <Input
-                    label="Timezone"
-                    list="timezones"
-                    value={form.timezone}
-                    onChange={(event) => update('timezone', event.target.value)}
-                    hint={zoneHint}
-                    error={fieldError('timezone')}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <datalist id="timezones">
-                    {zones.map((zone) => (
-                      <option key={zone} value={zone} aria-label={zone} />
-                    ))}
-                  </datalist>
-                </div>
-              </Card>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <Input
+                label="Display name"
+                value={form.full_name}
+                onChange={(event) => update('full_name', event.target.value)}
+                error={fieldError('full_name')}
+                autoComplete="name"
+              />
+              <Input
+                label="Email address"
+                value={saved.email}
+                readOnly
+                hint="Your email cannot be changed here yet. Changing it needs a new verification."
+              />
 
-              <Card className="!p-6">
-                <h2 className={SECTION_TITLE}>How to reach you</h2>
-                <div className="mt-4 grid gap-4">
-                  <Select
-                    label="Preferred way to be contacted"
-                    value={form.contact_preference}
-                    onChange={(event) =>
-                      update('contact_preference', event.target.value as ContactPreference)
+              <div>
+                <Input
+                  label="Timezone"
+                  list="timezones"
+                  value={form.timezone}
+                  onChange={(event) => update('timezone', event.target.value)}
+                  hint={zoneHint}
+                  error={fieldError('timezone')}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <datalist id="timezones">
+                  {zones.map((zone) => (
+                    <option key={zone} value={zone} aria-label={zone} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="grid gap-4">
+                <Select
+                  label="Best way to reach you"
+                  value={form.contact_preference}
+                  onChange={(event) =>
+                    update('contact_preference', event.target.value as ContactPreference)
+                  }
+                  error={fieldError('contact_preference')}
+                >
+                  <option value="email">Email</option>
+                  <option value="discord">Discord</option>
+                  <option value="phone">Phone</option>
+                </Select>
+                {form.contact_preference !== 'email' && (
+                  <Input
+                    label={
+                      form.contact_preference === 'discord' ? 'Discord handle' : 'Phone number'
                     }
-                    error={fieldError('contact_preference')}
-                  >
-                    <option value="email">Email</option>
-                    <option value="discord">Discord</option>
-                    <option value="phone">Phone</option>
-                  </Select>
-                  {form.contact_preference !== 'email' && (
-                    <Input
-                      label={
-                        form.contact_preference === 'discord' ? 'Discord handle' : 'Phone number'
-                      }
-                      value={form.contact_detail}
-                      onChange={(event) => update('contact_detail', event.target.value)}
-                      error={fieldError('contact_detail')}
-                      autoComplete="off"
-                    />
-                  )}
-                </div>
-              </Card>
+                    value={form.contact_detail}
+                    onChange={(event) => update('contact_detail', event.target.value)}
+                    error={fieldError('contact_detail')}
+                    autoComplete="off"
+                  />
+                )}
+              </div>
+
+              <div className="sm:col-span-2">
+                <Input
+                  label="Photo link"
+                  value={form.photo_url}
+                  onChange={(event) => update('photo_url', event.target.value)}
+                  hint="A link to a picture, starting with https://. Uploading a photo comes later."
+                  error={fieldError('photo_url')}
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
             </div>
 
-            {/* Right column: Public byline, then Email */}
-            <div className="flex flex-col gap-4">
-              <Card className="!p-6">
-                <h2 className={SECTION_TITLE}>Public byline</h2>
-                <div className="mt-4">
-                  <Switch
-                    label="Show my name on my public byline"
-                    hint="Off by default. Your public byline page shows the same setting, so changing it here changes it there."
-                    on={form.public_byline_consent}
-                    onChange={(on) => update('public_byline_consent', on)}
-                  />
-                </div>
-              </Card>
-
-              <Card className="!p-6">
-                <h2 className={SECTION_TITLE}>Email</h2>
-                <p className="m-0 mt-2 text-body text-ink-body">
-                  Account emails such as password resets always send.
-                </p>
-                <div className="mt-4 flex flex-col gap-4">
-                  <Check
-                    label="New and reviewed work"
-                    hint="When work is assigned to you, reviewed or approved."
-                    checked={form.email_assignments}
-                    onChange={(checked) => update('email_assignments', checked)}
-                  />
-                  <Check
-                    label="Reminders"
-                    hint="When something is due soon."
-                    checked={form.email_reminders}
-                    onChange={(checked) => update('email_reminders', checked)}
-                  />
-                  <Check
-                    label="Weekly summary"
-                    hint="One email a week with where you stand."
-                    checked={form.email_digest}
-                    onChange={(checked) => update('email_digest', checked)}
-                  />
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          {problem && <ProblemNotice problem={problem} />}
-
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <Button type="submit" loading={saving} className="w-full lg:w-auto">
-              Save changes
-            </Button>
-            {notice && (
-              <p role="status" className="m-0 text-meta text-ink-body">
-                {notice}
-              </p>
+            {problem && (
+              <div className="mt-6">
+                <ProblemNotice problem={problem} />
+              </div>
             )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button type="submit" loading={saving} className="w-full sm:w-auto">
+                Save changes
+              </Button>
+              {notice && (
+                <p role="status" className="m-0 text-meta text-ink-body">
+                  {notice}
+                </p>
+              )}
+            </div>
+          </Card>
+
+          {/* Right column: Public byline, then Email */}
+          <div className="flex flex-col gap-6">
+            <Card className="!p-6 lg:!p-8">
+              <h2 className={SECTION_TITLE}>Public byline</h2>
+              <div className="mt-4">
+                <Switch
+                  label="Show my name on my public byline"
+                  hint="Off by default. Your public byline page shows the same setting, so changing it here changes it there."
+                  on={form.public_byline_consent}
+                  onChange={(on) => update('public_byline_consent', on)}
+                />
+              </div>
+              <p className="m-0 mt-4 border-t border-line pt-4 text-meta text-ink-meta">
+                What becomes visible, and what never does, is spelled out on{' '}
+                <Link to="/privacy" className="font-semibold text-ink underline">
+                  the consent notice
+                </Link>
+                .
+              </p>
+            </Card>
+
+            <Card className="!p-6 lg:!p-8">
+              <h2 className={SECTION_TITLE}>Email</h2>
+              <div className="mt-4 flex flex-col gap-4">
+                <Check
+                  label="New and reviewed work"
+                  hint="When work is assigned to you, reviewed or approved."
+                  checked={form.email_assignments}
+                  onChange={(checked) => update('email_assignments', checked)}
+                />
+                <Check
+                  label="Reminders"
+                  hint="When something is due soon."
+                  checked={form.email_reminders}
+                  onChange={(checked) => update('email_reminders', checked)}
+                />
+                <Check
+                  label="Weekly summary"
+                  hint="One email a week with where you stand."
+                  checked={form.email_digest}
+                  onChange={(checked) => update('email_digest', checked)}
+                />
+              </div>
+              <p className="m-0 mt-4 border-t border-line pt-4 text-meta text-ink-meta">
+                Account emails such as password resets always send.
+              </p>
+            </Card>
           </div>
         </form>
       </div>
