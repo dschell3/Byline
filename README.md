@@ -5,7 +5,7 @@ A web dashboard for assigning, submitting, and reviewing intern work. Approved s
 Team Overclock · CSC 190/191 Senior Project, Sacramento State, Fall 2026 to Spring 2027
 Client: The Emerson Empire · Advisor: Kenneth Elliott
 
-> **Status:** Sprint 1 complete. The front end, API, database schema, design system, CI and a staging deployment are in place. Sprint 2 starts on the first product features.
+> **Status:** Sprint 2 complete. People can join by invite (P05), sign in (P01), verify their email (P04), reset a forgotten password (P02, P03), see their first-run home (P11) and My Work (P10), and edit their profile (P18). Sprint 1 set up the front end, API, database schema, design system, CI and staging. Sprint 3 (Nov 2 to 15) builds the submission flow: the assignment page with its criteria checklist, handing in text, a file or a link, recovering a failed upload, resubmitting after feedback, the submission history page, and late policies. It also moves the app onto the client's own theme.
 
 ## Overview
 
@@ -88,7 +88,9 @@ Both run in CI on every pull request. API tests that need a database run only wh
 - Front end: https://byline-web-eh4k.onrender.com/
 - API health check: https://byline-api-mn90.onrender.com/health
 
-Every merge to `main` deploys both services automatically; the stack is declared in `render.yaml`. The API runs on the free tier and takes about a minute to wake up after being idle. Moving the accounts into the client's name is tracked as SCRUM-75.
+Every merge to `main` deploys both services automatically; the stack is declared in `render.yaml`. These are the current services; the API takes under a minute to wake after being idle.
+
+<!-- SCRUM-75 step 2: Jang swaps in the client-account URLs and describes the account here. -->
 
 ## Team
 
@@ -108,26 +110,3 @@ Every merge to `main` deploys both services automatically; the stack is declared
 ## License
 
 TBD
-
-## Password recovery (SCRUM-10)
-
-- POST /auth/forgot-password requests a reset email.
-- GET /auth/reset-password/{token} returns the link state.
-- POST /auth/reset-password/{token} changes the password.
-
-Reset links expire after one hour, are single-use, and store
-only a SHA-256 token hash. A successful reset revokes existing
-login sessions.
-
-The forgot-password endpoint returns identical confirmation
-for known and unknown email addresses. Requests are limited
-per email and per IP.
-
-Email delivery uses SMTP configured with the RESET_SMTP_*
-environment variables, RESET_FROM_EMAIL, and
-RESET_WEB_BASE_URL. Until these are configured, the user-facing
-confirmation works but no reset email is delivered.
-
-SMTP tests use a mocked transport. A successful real-provider
-delivery test is required before considering email recovery
-production-ready.

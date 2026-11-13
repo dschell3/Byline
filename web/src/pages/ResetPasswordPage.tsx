@@ -162,7 +162,7 @@ export default function ResetPasswordPage() {
 
           {problem && <ProblemNotice problem={problem} />}
 
-          <Button type="submit" className="w-full !text-body !font-semibold" loading={loading}>
+          <Button type="submit" className="w-full" loading={loading}>
             Reset password
           </Button>
         </form>

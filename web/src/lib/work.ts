@@ -1,14 +1,22 @@
 // SCRUM-14: data and wording for My Work (P10).
 import { apiFetch } from './auth';
+import type { LatePolicy } from './latePolicy';
 import type { Status } from '../components/ui/Badge';
 
 export type WorkItem = {
   id: number;
+  // The latest submission, once there is one: where the row links (P14, SCRUM-22).
+  submission_id: number | null;
   title: string;
   set_by: string;
   due_at: string | null;
   points: number;
   status: Status;
+  // SCRUM-23: describeLatePolicy() in latePolicy.ts turns these into words.
+  late_policy: LatePolicy;
+  late_cutoff_hours: number | null;
+  // The first hand-in came after the due date. Decided on the server, in UTC.
+  handed_in_late: boolean;
 };
 
 export type WorkGroup = { key: Status; label: string; items: WorkItem[] };

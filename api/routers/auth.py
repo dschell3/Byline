@@ -20,6 +20,7 @@ from sessions import (
     CurrentUser,
     clear_session_cookie,
     current_user,
+    delete_old_ended_sessions,
     end_session,
     set_session_cookie,
     start_session,
@@ -92,6 +93,9 @@ def sign_in(
     # token planted before sign-in is never promoted to a signed-in session.
     end_session(db, request.cookies.get(COOKIE_NAME))
     set_session_cookie(response, start_session(db, person.id))
+    # Sign-in already writes to the session table, so it is the natural moment
+    # to clear out sessions that ended long ago. No separate scheduled job needed.
+    delete_old_ended_sessions(db)
     response.headers["Cache-Control"] = "no-store"
     return SignInResponse(id=person.id, full_name=person.full_name)
 
