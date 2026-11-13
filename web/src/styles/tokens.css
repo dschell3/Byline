@@ -1,32 +1,38 @@
 /* SCRUM-70: Byline design tokens. Values are R G B channels so Tailwind opacity modifiers work. */
+/* SCRUM-81: values are Lyric's Emerson theme (draft option A, P10-MyWork-Emerson-theme-only.html).
+   The draft is light only; the dark values below are derived from it. */
 
 :root,
 [data-theme='light'] {
-  --color-page: 238 242 247; /* #EEF2F7 */
-  --color-surface: 255 255 255; /* #FFFFFF */
-  --color-surface-recessed: 247 249 252; /* #F7F9FC */
-  --color-line: 214 222 232; /* #D6DEE8 */
-  --color-ink: 15 29 51; /* #0F1D33 */
-  --color-ink-body: 58 74 97; /* #3A4A61 */
-  --color-ink-meta: 85 105 138; /* #55698A */
-  --color-primary: 27 58 107; /* #1B3A6B */
+  --color-page: 247 248 246; /* #F7F8F6 */
+  --color-surface: 252 253 251; /* #FCFDFB */
+  --color-surface-recessed: 240 242 237; /* #F0F2ED, the draft's sidebar tint */
+  --color-line: 228 232 226; /* #E4E8E2 */
+  --color-line-strong: 211 217 208; /* #D3D9D0 */
+  --color-ink: 38 59 57; /* #263B39 */
+  --color-ink-body: 63 82 80; /* #3F5250 */
+  --color-ink-meta: 97 113 109; /* #61716D. Draft is #6B7A76 (4.2:1 on the page); darkened to pass 4.5:1 */
+  --color-primary: 40 81 65; /* #285141 */
+  --color-primary-hover: 23 63 48; /* #173F30 */
   --color-on-primary: 255 255 255;
-  --color-accent: 90 75 209; /* #5A4BD1 */
-  --color-danger: 163 32 26; /* #A3201A, destructive buttons */
-  --color-link: 27 58 107; /* text links and ghost buttons */
+  --color-accent: 195 163 106; /* #C3A36A, gold. Fills and marks only, too light for text */
+  --color-accent-deep: 150 118 55; /* #967637, eyebrows and dots */
+  --color-danger: 138 74 56; /* #8A4A38, destructive buttons */
+  --color-link: 40 81 65; /* text links and ghost buttons */
 
-  --status-due-soon-text: 20 66 127;
-  --status-due-soon-fill: 224 234 250;
-  --status-optional-text: 66 83 110;
-  --status-optional-fill: 230 235 242;
-  --status-submitted-text: 14 95 95;
-  --status-submitted-fill: 216 237 237;
-  --status-changes-text: 138 79 0;
-  --status-changes-fill: 250 231 204;
-  --status-overdue-text: 163 32 26;
-  --status-overdue-fill: 250 223 221;
-  --status-approved-text: 21 96 47;
-  --status-approved-fill: 217 237 224;
+  --status-due-soon-text: 40 81 65; /* #285141 */
+  --status-due-soon-fill: 221 233 225; /* #DDE9E1 */
+  --status-optional-text: 78 91 85; /* #4E5B55 */
+  --status-optional-fill: 232 236 229; /* #E8ECE5 */
+  --status-submitted-text: 31 90 80; /* #1F5A50 */
+  --status-submitted-fill: 217 231 227; /* #D9E7E3 */
+  --status-changes-text: 122 90 30; /* #7A5A1E */
+  --status-changes-fill: 243 232 208; /* #F3E8D0 */
+  --status-changes-dot: 168 130 47; /* #A8822F, the card edge for changes requested */
+  --status-overdue-text: 126 59 42; /* #7E3B2A */
+  --status-overdue-fill: 242 221 214; /* #F2DDD6 */
+  --status-approved-text: 30 90 58; /* #1E5A3A */
+  --status-approved-fill: 210 230 215; /* #D2E6D7 */
 
   /* The navy brand panel (P01 and other public pages). Navy in both themes, so dark mode does not redefine these. */
   --navy: 15 29 51; /* #0F1D33 */
@@ -42,29 +48,33 @@
 }
 
 [data-theme='dark'] {
-  --color-page: 11 18 32;
-  --color-surface: 17 26 43;
-  --color-surface-recessed: 14 22 38;
-  --color-line: 36 50 74;
-  --color-ink: 232 237 245;
-  --color-ink-body: 194 204 218;
-  --color-ink-meta: 143 160 184;
-  --color-primary: 61 102 173;
+  --color-page: 16 23 21; /* #101715 */
+  --color-surface: 24 33 30; /* #18211E */
+  --color-surface-recessed: 20 28 26; /* #141C1A */
+  --color-line: 43 58 53; /* #2B3A35 */
+  --color-line-strong: 61 78 72; /* #3D4E48 */
+  --color-ink: 233 239 234; /* #E9EFEA */
+  --color-ink-body: 197 208 202; /* #C5D0CA */
+  --color-ink-meta: 147 163 156; /* #93A39C */
+  --color-primary: 58 122 98; /* #3A7A62, light enough to see on the page, deep enough for white text */
+  --color-primary-hover: 49 107 85; /* #316B55 */
   --color-on-primary: 255 255 255;
-  --color-accent: 140 130 228; /* #8C82E4, the "on navy" value from Figma */
-  --color-danger: 185 48 42; /* deep enough for white text on dark */
-  --color-link: 157 190 242; /* light blue so links read on navy */
+  --color-accent: 195 163 106; /* #C3A36A, the gold holds on dark */
+  --color-accent-deep: 216 189 138; /* #D8BD8A, lighter so eyebrows read on dark */
+  --color-danger: 166 90 69; /* #A65A45, deep enough for white text on dark */
+  --color-link: 143 203 174; /* #8FCBAE, light green so links read on dark */
 
-  --status-due-soon-text: 157 190 242;
-  --status-due-soon-fill: 22 41 74;
-  --status-optional-text: 180 192 210;
-  --status-optional-fill: 31 42 60;
-  --status-submitted-text: 124 207 207;
-  --status-submitted-fill: 15 51 51;
-  --status-changes-text: 242 183 102;
-  --status-changes-fill: 58 39 8;
-  --status-overdue-text: 242 154 147;
-  --status-overdue-fill: 61 21 19;
-  --status-approved-text: 134 211 160;
-  --status-approved-fill: 18 51 31;
+  --status-due-soon-text: 163 211 186;
+  --status-due-soon-fill: 28 58 46;
+  --status-optional-text: 185 196 190;
+  --status-optional-fill: 39 49 46;
+  --status-submitted-text: 142 209 197;
+  --status-submitted-fill: 20 54 48;
+  --status-changes-text: 230 201 136;
+  --status-changes-fill: 58 46 18;
+  --status-changes-dot: 199 154 60;
+  --status-overdue-text: 235 168 150;
+  --status-overdue-fill: 64 33 26;
+  --status-approved-text: 143 212 168;
+  --status-approved-fill: 22 54 31;
 }
