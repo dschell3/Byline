@@ -1,7 +1,7 @@
 """SCRUM-10 password reset token
 
 Revision ID: 595438037200
-Revises: c7d3e9f1a2b4
+Revises: e5b8a2c4d6f1
 Create Date: 2026-10-30 21:12:54.386754
 
 """
