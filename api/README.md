@@ -257,8 +257,14 @@ token and `password_reset_token` stores only its SHA-256.
 | `GET /auth/reset-password/{token}` | Public. Returns `{"state"}` so P03 can show the valid, expired or used screen before the form is filled. `Cache-Control: no-store`. |
 | `POST /auth/reset-password/{token}` | Public. Takes `new_password` and `confirm_password`, marks the token used and revokes every live session for that person, so a stolen session does not survive a reset. |
 
-Links last one hour (`password_reset.TOKEN_LIFETIME`) and work once. A newer
-request does not yet retire older unused links; that is SCRUM-78.
+Links last one hour (`password_reset.TOKEN_LIFETIME`) and work once.
+SCRUM-78 also retires older unused links when a newer reset link
+is requested or a password is successfully reset.
+
+The forgot-password endpoint returns the same message for known and
+unknown emails. However, known accounts require an additional database
+write to create a reset token, so response times may differ slightly.
+This timing difference should be reviewed before production deployment.
 
 Delivery is SMTP, configured by `RESET_SMTP_HOST`, `RESET_SMTP_PORT` (default
 587), `RESET_SMTP_USERNAME`, `RESET_SMTP_PASSWORD`, `RESET_SMTP_STARTTLS`
