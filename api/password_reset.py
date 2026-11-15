@@ -33,13 +33,29 @@ def _as_utc(value: datetime) -> datetime:
 
 
 def issue_reset_token(db: Session, person_id: int) -> str:
-    """Generate a secure token; store only its hash."""
+    """Generate a secure token and retire earlier unused links."""
+    now = datetime.now(UTC)
+
+    # Serialize reset requests for the same account.
+    db.execute(select(Person.id).where(Person.id == person_id).with_for_update()).scalar_one()
+
+    # Retire earlier unused reset links for this person.
+    db.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.person_id == person_id,
+            PasswordResetToken.used_at.is_(None),
+        )
+        .values(used_at=now)
+    )
+
+    # Generate a new secure token and store only its hash.
     token = secrets.token_urlsafe(32)
     db.add(
         PasswordResetToken(
             person_id=person_id,
             token_hash=_hash_token(token),
-            expires_at=datetime.now(UTC) + TOKEN_LIFETIME,
+            expires_at=now + TOKEN_LIFETIME,
         )
     )
     db.commit()
@@ -67,26 +83,47 @@ def get_reset_state(db: Session, token: str) -> ResetState:
 def redeem_reset_token(db: Session, token: str, new_password: str) -> ResetState:
     """Consume a reset link and update the password atomically."""
     record = db.scalar(
-        select(PasswordResetToken)
-        .where(PasswordResetToken.token_hash == _hash_token(token))
-        .with_for_update()
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == _hash_token(token))
     )
 
-    now = datetime.now(UTC)
-    state = _state(record, now)
-    if state is not ResetState.VALID:
+    if record is None:
         db.rollback()
-        return state
+        return ResetState.INVALID
 
-    person = db.get(Person, record.person_id)
+    # Lock the account before changing or checking token state.
+    # Issuing and redeeming tokens now use the same lock order.
+    person = db.scalar(select(Person).where(Person.id == record.person_id).with_for_update())
+
     if person is None:
         db.rollback()
         return ResetState.INVALID
 
+    # Re-read the token after acquiring the account lock.
+    # Another request may have retired it while we waited.
+    db.refresh(record, with_for_update=True)
+
+    now = datetime.now(UTC)
+    state = _state(record, now)
+
+    if state is not ResetState.VALID:
+        db.rollback()
+        return state
+
     person.password_hash = hash_password(new_password)
     record.used_at = now
 
-    # Sign out existing sessions after a password reset.
+    # Retire every other unused reset link for this account.
+    db.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.person_id == person.id,
+            PasswordResetToken.id != record.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+        .values(used_at=now)
+    )
+
+    # Revoke existing sessions after the password reset.
     db.execute(
         update(AuthSession)
         .where(
@@ -95,5 +132,6 @@ def redeem_reset_token(db: Session, token: str, new_password: str) -> ResetState
         )
         .values(revoked_at=now)
     )
+
     db.commit()
     return ResetState.SUCCESS
