@@ -13,6 +13,7 @@ import TokensPage from './pages/TokensPage.tsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.tsx';
 import VerifyPage from './pages/VerifyPage.tsx';
+import SubmitWorkPage from './pages/SubmitWorkPage.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
         {/* Signed-in pages go inside RequireAuth (SCRUM-13). */}
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
+            <Route path="/a/:id/submit" element={<SubmitWorkPage />} />
             <Route path="/" element={<HomePage />} />
             <Route path="/me" element={<ProfilePage />} />
             {/* P14: one submission's versions, reviews and comments (SCRUM-22). */}
