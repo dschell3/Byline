@@ -18,9 +18,10 @@ import ratelimit
 import sessions
 from db import as_psycopg_url, get_db
 from main import app
-from models import Assignment, Membership, Organization, Person, Submission, Team
+from models import Assignment, Membership, Organization, Person, Review, Submission, Team
 from security import hash_password
 from sessions import NOT_ALLOWED
+from submissions import previous_feedback
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
@@ -345,3 +346,129 @@ def test_invalid_payloads_are_rejected(
         select(Submission).where(Submission.assignment_id == world.assignment_id)
     ).all()
     assert saved == []
+
+
+# --- SCRUM-21: resubmission ----------------------------------------------------------------
+
+
+def request_changes(db: Session, submission_id: int, reason: str = "Add the phone frames.") -> None:
+    """What a supervisor's review does: a final changes-requested review, status cached."""
+    db.add(
+        Review(
+            submission_id=submission_id,
+            actor_type="person",
+            decision="changes_requested",
+            reason=reason,
+            is_final=True,
+        )
+    )
+    db.get(Submission, submission_id).status = "changes_requested"
+    db.flush()
+
+
+def test_resubmit_after_changes_requested_makes_version_two(
+    client: TestClient,
+    db: Session,
+    world: World,
+) -> None:
+    sign_in(client)
+    first = submit(client, world, content="First try")
+    assert first.status_code == 201
+    request_changes(db, first.json()["id"])
+    before = db.get(Submission, first.json()["id"])
+    v1 = (before.version, before.content, before.submission_kind, before.submitted_at)
+
+    second = submit(client, world, content="Second try")
+
+    assert second.status_code == 201, second.text
+    assert second.json()["version"] == 2
+    assert second.json()["status"] == "submitted"
+
+    rows = db.scalars(
+        select(Submission)
+        .where(Submission.assignment_id == world.assignment_id)
+        .order_by(Submission.version)
+    ).all()
+    assert [r.version for r in rows] == [1, 2]
+    db.refresh(rows[0])
+    assert (rows[0].version, rows[0].content, rows[0].submission_kind, rows[0].submitted_at) == v1
+    assert rows[0].status == "changes_requested"
+
+    history = client.get(f"/submissions/{second.json()['id']}")
+    assert history.status_code == 200
+    assert [v["version"] for v in history.json()["versions"]] == [1, 2]
+
+
+def test_resubmit_puts_it_back_under_submitted_on_my_work(
+    client: TestClient,
+    db: Session,
+    world: World,
+) -> None:
+    sign_in(client)
+    first = submit(client, world)
+    request_changes(db, first.json()["id"])
+    second = submit(client, world, content="Fixed")
+
+    items = [
+        item
+        for group in client.get("/me/work").json()["groups"]
+        for item in group["items"]
+        if item["id"] == world.assignment_id
+    ]
+    assert items[0]["status"] == "submitted"
+    assert items[0]["submission_id"] == second.json()["id"]
+
+
+@pytest.mark.parametrize("status", ["submitted", "approved"])
+def test_resubmit_refused_unless_changes_were_requested(
+    client: TestClient,
+    db: Session,
+    world: World,
+    status: str,
+) -> None:
+    sign_in(client)
+    first = submit(client, world)
+    db.get(Submission, first.json()["id"]).status = status
+    db.flush()
+
+    assert submit(client, world, content="Again").status_code == 409
+
+
+def test_resubmit_after_the_deadline_is_accepted(
+    client: TestClient,
+    db: Session,
+    world: World,
+) -> None:
+    sign_in(client)
+    first = submit(client, world)
+    request_changes(db, first.json()["id"])
+    assignment = db.get(Assignment, world.assignment_id)
+    assignment.due_at = sessions.now() - timedelta(days=1)
+    assignment.late_policy = "not_accepted"
+    db.flush()
+
+    assert submit(client, world, content="Late fix").status_code == 201
+
+
+def test_previous_feedback_is_the_latest_final_review(
+    client: TestClient,
+    db: Session,
+    world: World,
+) -> None:
+    assert previous_feedback(db, world.assignment_id, world.member_id) == []
+
+    sign_in(client)
+    first = submit(client, world)
+    request_changes(db, first.json()["id"], reason="Show the empty state.")
+    db.add(
+        Review(
+            submission_id=first.json()["id"],
+            actor_type="system",
+            decision="approved",
+            is_final=False,
+        )
+    )
+    db.flush()
+
+    feedback = previous_feedback(db, world.assignment_id, world.member_id)
+    assert [r.reason for r in feedback] == ["Show the empty state."]
