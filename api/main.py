@@ -2,7 +2,16 @@
 
 from fastapi import FastAPI
 
-from routers import auth, invites, me, members, reset_password, submissions, verify
+from routers import (
+    auth,
+    invites,
+    me,
+    members,
+    reset_password,
+    submissions,
+    submit_work,
+    verify,
+)
 
 app = FastAPI(title="OverClock API")
 app.include_router(auth.router)
@@ -12,6 +21,7 @@ app.include_router(members.router)
 app.include_router(reset_password.router)
 app.include_router(submissions.router)
 app.include_router(verify.router)
+app.include_router(submit_work.router)
 
 
 @app.get("/health")
