@@ -32,7 +32,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 14 | invite | A link to join one organization (SCRUM-11): the invitee's `email`, the `role`, cohort, track and team they join, who sent it, `token_hash`, `expires_at`, `accepted_at`, `revoked_at`. | organization 1–many, sent by a membership. Unique on token_hash |
 | 15 | email_verification | A link that confirms a person owns their email (SCRUM-12): the `person_id`, the `email` it was sent to, `token_hash`, `expires_at` (24 hours), `used_at`. | person 1–many. Unique on token_hash |
 | 16 | password_reset_token | A link that lets a person set a new password (SCRUM-10): `person_id`, `token_hash`, `expires_at` (1 hour), `used_at`. | person 1–many. Unique on token_hash |
-| 17 | assessment_criterion | One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22): `position`, `text`, `max_points`. | assignment 1–many. Unique on (assignment_id, position) |
+| 17 | assessment_criterion | One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22): `position`, `text`, optional `detail`, `max_points`. | assignment 1–many. Unique on (assignment_id, position) |
 | 18 | review_criterion_score | A review's `score` and optional `note` against one criterion (SCRUM-22). | review 1–many, assessment_criterion 1–many. Unique on (review_id, criterion_id) |
 | 19 | submission_comment | A comment between member and supervisor on one version of a submission (SCRUM-22): `body`, optional `parent_comment_id` for one level of replies. | submission 1–many, written by a membership |
 
@@ -75,6 +75,12 @@ so if this grows it becomes a join table.
 cutoff), so "accepted up to 48 hours late at half points" is `accepted_half_points` + `48`.
 The rules that use them live in `api/late_policy.py`.
 
+**What the assignment page shows (SCRUM-18, P12).** `assignment.description` is the brief as plain text.
+`reference_links` and `attachments` are JSONB lists on the assignment (`{label, url}` and `{name, key, size_bytes}`),
+not tables: they are only ever read with their assignment and nothing points at them. If attachments later need
+their own access rules they become a table. The API sends only `http(s)` links, and keeps attachment keys on the
+server until file storage can hand out downloads. `assessment_criterion.detail` is the optional second line under a criterion.
+
 **`submission.status` is a deliberate cache** of the latest final review's decision, so list pages don't need a join.
 `review` is the source of truth. The app updates both in the same transaction.
 
@@ -88,7 +94,7 @@ The rules that use them live in `api/late_policy.py`.
 
 ## Still open
 
-- Column details on assignment and submission (SCRUM-18, SCRUM-19) wait for Lyric's tracking-sheet headers. They don't change the table shape. Review columns are settled (SCRUM-22).
+- Column details on submission (SCRUM-19) wait for Lyric's tracking-sheet headers. They don't change the table shape. Assignment columns (SCRUM-18) and review columns (SCRUM-22) are settled.
 - Can one supervisor run more than one team? This draft says one team per membership. If several, we add a join table.
 
 ## Diagram
@@ -195,6 +201,9 @@ erDiagram
         bigint track_id FK "nullable"
         bigint_array recipient_membership_ids "nullable, picked members"
         text title "NOT NULL"
+        text description "nullable, the brief on P12"
+        jsonb reference_links "nullable: label + url"
+        jsonb attachments "nullable: name, R2 key, size_bytes"
         int points_value "NOT NULL"
         boolean is_mandatory "NOT NULL, default true"
         text late_policy "NOT NULL: not_accepted | accepted_full_points | accepted_half_points"
@@ -226,6 +235,7 @@ erDiagram
         bigint assignment_id FK "NOT NULL"
         int position "NOT NULL, unique per assignment"
         text text "NOT NULL"
+        text detail "nullable, the hint line on P12"
         int max_points "NOT NULL, >= 0"
         timestamptz created_at "NOT NULL"
     }
