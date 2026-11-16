@@ -1,10 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link, useParams } from 'react-router';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import {
+  emptyDraft,
+  hasContent,
+  loadDraft,
+  saveDraft,
+  type Draft,
+  type SubmissionKind,
+} from '../lib/draft';
+import { FAILURE_MESSAGE, isTooLong, MAX_TEXT_CHARS } from '../lib/submitFailure';
 import { fetchWork, type WorkItem } from '../lib/work';
 
-type SubmissionKind = 'text' | 'link' | 'pr';
+// SCRUM-20: what is typed here is kept on this device as it is typed, one draft per assignment.
+type DraftState = { assignmentId: number; draft: Draft; restored: boolean; saved: boolean };
+
+function openDraft(assignmentId: number, validId: boolean): DraftState {
+  const draft = validId ? loadDraft(assignmentId) : emptyDraft();
+  return { assignmentId, draft, restored: hasContent(draft), saved: true };
+}
+
+function subscribeOnline(callback: () => void) {
+  window.addEventListener('online', callback);
+  window.addEventListener('offline', callback);
+  return () => {
+    window.removeEventListener('online', callback);
+    window.removeEventListener('offline', callback);
+  };
+}
 
 type LoadState =
   | {
@@ -34,8 +58,26 @@ export default function SubmitWorkPage() {
     assignmentId > 0;
 
   const [loadState, setLoadState] = useState<LoadState | null>(null);
-  const [kind, setKind] = useState<SubmissionKind>('text');
-  const [content, setContent] = useState('');
+  const [draftState, setDraftState] = useState(() => openDraft(assignmentId, validId));
+  // A different assignment opens its own draft.
+  if (draftState.assignmentId !== assignmentId) setDraftState(openDraft(assignmentId, validId));
+  const online = useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
+  const { draft } = draftState;
+  const kind = draft.kind;
+  const content = draft.values[kind];
+
+  function update(next: Draft) {
+    setDraftState({
+      assignmentId,
+      draft: next,
+      restored: false,
+      saved: saveDraft(assignmentId, next),
+    });
+  }
 
   useEffect(() => {
     if (!validId) return;
@@ -127,10 +169,7 @@ export default function SubmitWorkPage() {
                 type="button"
                 variant={kind === choice.kind ? 'primary' : 'secondary'}
                 aria-pressed={kind === choice.kind}
-                onClick={() => {
-                  setKind(choice.kind);
-                  setContent('');
-                }}
+                onClick={() => update({ ...draft, kind: choice.kind })}
               >
                 {choice.label}
               </Button>
@@ -150,7 +189,9 @@ export default function SubmitWorkPage() {
                   id="submission-text"
                   rows={8}
                   value={content}
-                  onChange={(event) => setContent(event.target.value)}
+                  onChange={(event) =>
+                    update({ ...draft, values: { ...draft.values, text: event.target.value } })
+                  }
                   placeholder="Enter your work here..."
                   className="w-full rounded-md border border-line bg-surface p-3 text-body text-ink"
                 />
@@ -165,7 +206,9 @@ export default function SubmitWorkPage() {
                   id="submission-url"
                   type="url"
                   value={content}
-                  onChange={(event) => setContent(event.target.value)}
+                  onChange={(event) =>
+                    update({ ...draft, values: { ...draft.values, [kind]: event.target.value } })
+                  }
                   placeholder={
                     kind === 'pr'
                       ? 'https://github.com/owner/repository/pull/123'
@@ -175,6 +218,27 @@ export default function SubmitWorkPage() {
                 />
               </label>
             )}
+            {kind === 'text' && (
+              <p className="mt-2 text-meta text-ink-meta">
+                {content.length.toLocaleString()} / {MAX_TEXT_CHARS.toLocaleString()} characters
+              </p>
+            )}
+            {isTooLong(kind, content) && (
+              <p role="alert" className="mt-2 text-meta text-status-overdue-text">
+                {FAILURE_MESSAGE.too_large}
+              </p>
+            )}
+            <p role="status" className="mt-3 text-meta text-ink-meta">
+              {!draftState.saved
+                ? 'This browser cannot keep a draft, so keep a copy of what you type.'
+                : !online
+                  ? 'You are offline. Your draft is saved on this device.'
+                  : draftState.restored
+                    ? 'Draft restored from this device.'
+                    : hasContent(draft)
+                      ? 'Draft saved on this device.'
+                      : ''}
+            </p>
           </div>
 
           <p className="mt-5 text-meta text-ink-meta">
