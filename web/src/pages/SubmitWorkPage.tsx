@@ -1,8 +1,10 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
+import type { CurrentUser } from '../lib/auth';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import {
+  clearDraft,
   emptyDraft,
   hasContent,
   loadDraft,
@@ -10,15 +12,22 @@ import {
   type Draft,
   type SubmissionKind,
 } from '../lib/draft';
-import { FAILURE_MESSAGE, isTooLong, MAX_TEXT_CHARS } from '../lib/submitFailure';
+import { classifyFailure, FAILURE_MESSAGE, isTooLong, MAX_TEXT_CHARS } from '../lib/submitFailure';
+import { createSubmission } from '../lib/submitWork';
 import { fetchWork, type WorkItem } from '../lib/work';
 
 // SCRUM-20: what is typed here is kept on this device as it is typed, one draft per assignment.
-type DraftState = { assignmentId: number; draft: Draft; restored: boolean; saved: boolean };
+type DraftState = {
+  assignmentId: number;
+  userId: number;
+  draft: Draft;
+  restored: boolean;
+  saved: boolean;
+};
 
-function openDraft(assignmentId: number, validId: boolean): DraftState {
-  const draft = validId ? loadDraft(assignmentId) : emptyDraft();
-  return { assignmentId, draft, restored: hasContent(draft), saved: true };
+function openDraft(assignmentId: number, validId: boolean, userId: number): DraftState {
+  const draft = validId ? loadDraft(`${userId}:${assignmentId}`) : emptyDraft();
+  return { assignmentId, userId, draft, restored: hasContent(draft), saved: true };
 }
 
 function subscribeOnline(callback: () => void) {
@@ -49,6 +58,8 @@ const CHOICES: { kind: SubmissionKind; label: string }[] = [
 
 export default function SubmitWorkPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const user = useOutletContext<CurrentUser>();
 
   const assignmentId = Number(id);
   const validId =
@@ -58,25 +69,83 @@ export default function SubmitWorkPage() {
     assignmentId > 0;
 
   const [loadState, setLoadState] = useState<LoadState | null>(null);
-  const [draftState, setDraftState] = useState(() => openDraft(assignmentId, validId));
+  const [draftState, setDraftState] = useState(() => openDraft(assignmentId, validId, user.id));
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   // A different assignment opens its own draft.
-  if (draftState.assignmentId !== assignmentId) setDraftState(openDraft(assignmentId, validId));
+  if (draftState.assignmentId !== assignmentId || draftState.userId !== user.id) {
+    setDraftState(openDraft(assignmentId, validId, user.id));
+  }
   const online = useSyncExternalStore(
     subscribeOnline,
     () => navigator.onLine,
     () => true,
   );
   const { draft } = draftState;
+  const draftKey = `${user.id}:${assignmentId}`;
   const kind = draft.kind;
   const content = draft.values[kind];
 
   function update(next: Draft) {
+    setSubmitError(null);
     setDraftState({
       assignmentId,
+      userId: user.id,
       draft: next,
       restored: false,
-      saved: saveDraft(assignmentId, next),
+      saved: saveDraft(draftKey, next),
     });
+  }
+
+  async function handleSubmit() {
+    if (submitting || !validId || !online) return;
+
+    const value = content.trim();
+    if (!value || isTooLong(kind, content) || (kind !== 'text' && value.length > 2048)) {
+      setSubmitError('Enter valid content within the allowed length.');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await createSubmission(assignmentId, kind, value);
+
+      if (!response.ok) {
+        const message =
+          response.status === 409
+            ? 'Already submitted or deadline passed. Check My Work before retrying. Your draft is still here.'
+            : response.status === 422
+              ? 'Check your text or URL and try again. Your draft is still here.'
+              : FAILURE_MESSAGE[classifyFailure(response)];
+        setSubmitError(message);
+        return;
+      }
+
+      const saved = (await response.json()) as { id?: number };
+
+      if (
+        response.status !== 201 ||
+        !Number.isSafeInteger(saved.id) ||
+        !saved.id ||
+        saved.id <= 0
+      ) {
+        setSubmitError(
+          'Could not confirm the submission. Check My Work before retrying. Your draft is still here.',
+        );
+        return;
+      }
+
+      clearDraft(draftKey);
+      navigate(`/s/${saved.id}`, { replace: true });
+    } catch {
+      setSubmitError(
+        'Could not confirm whether work was submitted. Check My Work before retrying. Your draft is still here.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   useEffect(() => {
@@ -242,12 +311,22 @@ export default function SubmitWorkPage() {
           </div>
 
           <p className="mt-5 text-meta text-ink-meta">
-            Submission saving and validation will be connected to the backend in the next step.
-            Nothing is sent yet.
+            Your draft is kept until the server confirms submission.
           </p>
 
+          {submitError && (
+            <p role="alert" className="mt-3 text-meta text-status-overdue-text">
+              {submitError}
+            </p>
+          )}
+
           <div className="mt-5">
-            <Button type="button" disabled>
+            <Button
+              type="button"
+              loading={submitting}
+              disabled={submitting || !online || !content.trim() || isTooLong(kind, content)}
+              onClick={() => void handleSubmit()}
+            >
               Submit work
             </Button>
           </div>

@@ -195,6 +195,12 @@ def test_successful_submission_is_saved(
     assert saved.submission_kind == kind
     assert saved.content == content
 
+    history = client.get(f"/submissions/{result['id']}")
+    assert history.status_code == 200, history.text
+    version = history.json()["versions"][0]
+    assert version["submission_kind"] == kind
+    assert version["content"] == content
+
 
 def test_submission_updates_my_work(
     client: TestClient,

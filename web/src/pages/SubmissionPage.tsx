@@ -170,6 +170,27 @@ function VersionSection({
         </span>
       </div>
 
+      {version.content && (
+        <div className="mt-4">
+          <h3 className="text-card-title text-ink">Submitted work</h3>
+          {version.submission_kind === 'text' ? (
+            <p className="mt-2 whitespace-pre-wrap break-words text-body text-ink-body">
+              {version.content}
+            </p>
+          ) : (version.submission_kind === 'link' || version.submission_kind === 'pr') &&
+            (version.content.startsWith('https://') || version.content.startsWith('http://')) ? (
+            <a
+              href={version.content}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 block break-all text-body text-link underline"
+            >
+              {version.content}
+            </a>
+          ) : null}
+        </div>
+      )}
+
       {version.file_keys.length > 0 && (
         <ul className="m-0 mt-4 flex list-none flex-col gap-1 p-0">
           {version.file_keys.map((key) => (

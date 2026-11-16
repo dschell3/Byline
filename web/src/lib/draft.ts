@@ -27,7 +27,10 @@ function defaultStore(): Store | null {
   }
 }
 
-export function loadDraft(assignmentId: number, store: Store | null = defaultStore()): Draft {
+export function loadDraft(
+  assignmentId: number | string,
+  store: Store | null = defaultStore(),
+): Draft {
   try {
     const raw = store?.getItem(PREFIX + assignmentId);
     if (!raw) return emptyDraft();
@@ -48,7 +51,7 @@ export function loadDraft(assignmentId: number, store: Store | null = defaultSto
 
 // true when the draft is kept (or there is nothing to keep), false when this browser would not store it.
 export function saveDraft(
-  assignmentId: number,
+  assignmentId: number | string,
   draft: Draft,
   store: Store | null = defaultStore(),
 ): boolean {
@@ -62,7 +65,10 @@ export function saveDraft(
   }
 }
 
-export function clearDraft(assignmentId: number, store: Store | null = defaultStore()): void {
+export function clearDraft(
+  assignmentId: number | string,
+  store: Store | null = defaultStore(),
+): void {
   try {
     store?.removeItem(PREFIX + assignmentId);
   } catch {

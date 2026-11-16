@@ -68,6 +68,8 @@ class VersionOut(BaseModel):
     status: str
     submitted_at: datetime
     file_keys: list[str]
+    submission_kind: str | None
+    content: str | None
     reviews: list[ReviewOut]
     comments: list[CommentOut]
 
@@ -210,6 +212,8 @@ def history(db: Session, submission: Submission, viewer_is_owner: bool) -> Submi
                 status=version.status,
                 submitted_at=version.submitted_at,
                 file_keys=list(version.file_keys or []),
+                submission_kind=version.submission_kind,
+                content=version.content,
                 reviews=_reviews(db, version.id, include_drafts=not viewer_is_owner),
                 comments=_comments(db, version.id),
             )

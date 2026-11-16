@@ -68,6 +68,15 @@ describe('drafts', () => {
     expect(() => clearDraft(7, broken)).not.toThrow();
   });
 
+  test('drafts are isolated between signed-in accounts', () => {
+    const store = fakeStore();
+    saveDraft('1:7', typed, store);
+    expect(loadDraft('1:7', store)).toEqual(typed);
+    expect(loadDraft('2:7', store)).toEqual(emptyDraft());
+    clearDraft('1:7', store);
+    expect(loadDraft('1:7', store)).toEqual(emptyDraft());
+  });
+
   test('hasContent ignores whitespace', () => {
     expect(hasContent(emptyDraft())).toBe(false);
     expect(hasContent({ ...emptyDraft(), values: { text: '  ', link: '', pr: '' } })).toBe(false);
