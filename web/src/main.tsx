@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router';
 import './index.css';
 import AppLayout from './components/AppLayout.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
+import AssignmentPage from './pages/AssignmentPage.tsx';
 import HomePage from './pages/HomePage.tsx';
 import InvitePage from './pages/InvitePage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
@@ -23,6 +24,8 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<AppLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/me" element={<ProfilePage />} />
+            {/* P12: one assignment, with its criteria as a checklist (SCRUM-18). */}
+            <Route path="/a/:id" element={<AssignmentPage />} />
             {/* P14: one submission's versions, reviews and comments (SCRUM-22). */}
             <Route path="/s/:id" element={<SubmissionPage />} />
           </Route>
