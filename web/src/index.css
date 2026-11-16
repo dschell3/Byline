@@ -14,6 +14,15 @@
   h3 {
     @apply font-serif text-ink;
   }
+
+  /* SCRUM-81: Libre Caslon Display has one weight. Headings that ask for semibold or bold
+     show the real regular cut instead of a smeared browser-made bold. */
+  h1,
+  h2,
+  h3,
+  .font-serif {
+    font-synthesis-weight: none;
+  }
 }
 
 @layer components {
