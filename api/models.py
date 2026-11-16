@@ -248,6 +248,10 @@ class Submission(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     # Cloudflare R2 object keys.
     file_keys: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+
+    # SCRUM-19: text, link, or GitHub PR submissions.
+    submission_kind: Mapped[str | None] = mapped_column(Text)
+    content: Mapped[str | None] = mapped_column(Text)
     # Cached from the latest final review. review is the source of truth.
     status: Mapped[str] = mapped_column(Text, nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(

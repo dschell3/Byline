@@ -37,6 +37,8 @@ export type Version = {
   status: string;
   submitted_at: string;
   file_keys: string[];
+  submission_kind: 'text' | 'link' | 'pr' | null;
+  content: string | null;
   reviews: Review[];
   comments: Comment[];
 };
