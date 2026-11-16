@@ -3,6 +3,7 @@ import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import type { CurrentUser } from '../lib/auth';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { ResubmitFeedback } from '../components/ResubmitFeedback';
 import {
   clearDraft,
   emptyDraft,
@@ -13,6 +14,7 @@ import {
   type SubmissionKind,
 } from '../lib/draft';
 import { classifyFailure, FAILURE_MESSAGE, isTooLong, MAX_TEXT_CHARS } from '../lib/submitFailure';
+import { isResubmit } from '../lib/resubmit';
 import { createSubmission } from '../lib/submitWork';
 import { fetchWork, type WorkItem } from '../lib/work';
 
@@ -224,9 +226,16 @@ export default function SubmitWorkPage() {
           Back to My Work
         </Link>
 
-        <h1 className="mt-5 text-page-title">Submit work</h1>
+        <h1 className="mt-5 text-page-title">
+          {isResubmit(assignment) ? 'Resubmit work' : 'Submit work'}
+        </h1>
 
         <p className="mt-2 text-body text-ink-body">{assignment.title}</p>
+
+        {/* SCRUM-21: the reviewer's reason and scores, on this screen, above the form. */}
+        {isResubmit(assignment) && assignment.submission_id !== null && (
+          <ResubmitFeedback submissionId={assignment.submission_id} />
+        )}
 
         <Card className="mt-6 !p-6">
           <h2 className="text-section">Choose how to submit</h2>
@@ -327,7 +336,7 @@ export default function SubmitWorkPage() {
               disabled={submitting || !online || !content.trim() || isTooLong(kind, content)}
               onClick={() => void handleSubmit()}
             >
-              Submit work
+              {isResubmit(assignment) ? 'Resubmit work' : 'Submit work'}
             </Button>
           </div>
         </Card>

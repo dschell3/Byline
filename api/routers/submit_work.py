@@ -1,4 +1,4 @@
-"""SCRUM-19: create a member's first assignment submission."""
+"""SCRUM-19 and SCRUM-21: hand in work, or hand it in again after changes were requested."""
 
 from datetime import datetime
 
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 import assignments
 import late_policy
+import resubmit
 import sessions
 from db import get_db
 from models import Assignment, Membership, Person, Submission
@@ -40,7 +41,12 @@ def create_submission(
     user: CurrentUser = Depends(current_user),
     db: Session = Depends(get_db),
 ) -> CreatedSubmission:
-    """Accept a first submission from an assigned, active member."""
+    """Accept a first submission, or a resubmission after changes were requested.
+
+    One endpoint for both. The server picks the version number; earlier
+    versions are never changed. The new row is ``submitted``, which puts it
+    back in the supervisor's queue.
+    """
 
     # Coordinate simultaneous submissions from the same account.
     db.scalar(select(Person.id).where(Person.id == user.person.id).with_for_update())
@@ -77,15 +83,10 @@ def create_submission(
             detail=NOT_ALLOWED,
         )
 
-    # SCRUM-21 handles resubmission after review.
-    previous_submission = db.scalar(
-        select(Submission.id).where(
-            Submission.assignment_id == assignment.id,
-            Submission.membership_id == member.id,
-        )
-    )
+    # SCRUM-21: a second hand-in is allowed only after changes were requested.
+    latest = resubmit.latest_version(db, assignment.id, member.id)
 
-    if previous_submission is not None:
+    if latest is not None and not resubmit.can_resubmit(latest):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This assignment has already been submitted.",
@@ -93,7 +94,9 @@ def create_submission(
 
     submitted_at = sessions.now()
 
-    if not late_policy.can_still_be_handed_in(assignment, submitted_at):
+    # Lateness is judged on the first hand-in only (SCRUM-23), so a resubmission
+    # after the deadline is still accepted.
+    if latest is None and not late_policy.can_still_be_handed_in(assignment, submitted_at):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The submission deadline has passed.",
@@ -102,7 +105,7 @@ def create_submission(
     submission = Submission(
         assignment_id=assignment.id,
         membership_id=member.id,
-        version=1,
+        version=resubmit.next_version(latest),
         file_keys=None,
         submission_kind=body.kind,
         content=body.content,
