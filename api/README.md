@@ -298,6 +298,33 @@ python scripts/seed_submission.py amara@example.com --password "pick one"
 It creates the organization, team, supervisor and member if they are missing,
 and prints the two `/s/{id}` links. Running it again writes nothing new.
 
+## Assignment page (SCRUM-18)
+
+The assignment page (P12, `/a/:id` in the web app) reads one endpoint.
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `GET /assignments/{id}` | Session required, `Cache-Control: no-store`. `{"id", "title", "description", "set_by", "set_at", "due_at", "points", "is_mandatory", "status", "track", "cohort", "criteria", "reference_links", "attachments", "late_policy", "late_cutoff_hours", "submission_id", "can_submit"}`. 403 unless the assignment was targeted at one of the caller's active memberships, and for an id that does not exist, so ids cannot be probed. |
+
+- **Who it is for** is decided by `assignments.assigned_to`, the same rule My
+  Work uses, so a row on My Work always opens and nothing else does.
+- `criteria` is the assessment checklist in `position` order: `text`, an
+  optional `detail` line, and `max_points`. They are the same rows a review
+  scores against (`review_criterion_score`).
+- `status` is one of the six My Work group keys, from `work.status_of`.
+- `due_at`, `late_policy` and `late_cutoff_hours` are the fields
+  `describeLatePolicy()` needs (SCRUM-23).
+- `submission_id` is the member's latest version, or null. With one, the page
+  shows **View submission** (P14). Without one it shows **Submit** (P13) while
+  `can_submit` is true, which is `late_policy.can_still_be_handed_in` right now.
+- `reference_links` only ever contains `http(s)` URLs; anything else stored is
+  dropped. `attachments` carries `name` and `size_bytes`. The R2 object key
+  stays on the server until file storage can hand out downloads.
+
+`scripts/seed_assignment.py` writes an assignment with all of this filled in
+and no submission, for local and staging use until supervisors can author
+assignments in the app (P22).
+
 ## Tests
 
 ```bash

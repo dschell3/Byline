@@ -22,13 +22,13 @@ function Row({ item, timeZone }: { item: WorkItem; timeZone: string }) {
     >
       <div className="min-w-0">
         <p className="m-0 text-card-title text-ink">
-          {item.submission_id === null ? (
-            item.title
-          ) : (
-            <Link to={`/s/${item.submission_id}`} className="text-ink no-underline hover:underline">
-              {item.title}
-            </Link>
-          )}
+          {/* Handed in: the submission (P14, SCRUM-22). Not yet: the assignment (P12, SCRUM-18). */}
+          <Link
+            to={item.submission_id === null ? `/a/${item.id}` : `/s/${item.submission_id}`}
+            className="text-ink no-underline hover:underline"
+          >
+            {item.title}
+          </Link>
         </p>
         <p className="m-0 mt-0.5 text-meta text-ink-meta">
           Set by {item.set_by} ·{' '}

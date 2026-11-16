@@ -189,6 +189,12 @@ class Assignment(Base):
     # Picked members. Postgres can't put a FK inside an array; see the ERD decision.
     recipient_membership_ids: Mapped[list[int] | None] = mapped_column(ARRAY(BigInteger))
     title: Mapped[str] = mapped_column(Text, nullable=False)
+    # P12 (SCRUM-18). The full brief, plain text; a blank line starts a new paragraph.
+    description: Mapped[str | None] = mapped_column(Text)
+    # [{"label": ..., "url": ...}], in the order the supervisor listed them.
+    reference_links: Mapped[list[dict] | None] = mapped_column(JSONB)
+    # [{"name": ..., "key": ..., "size_bytes": ...}]. key is the Cloudflare R2 object key.
+    attachments: Mapped[list[dict] | None] = mapped_column(JSONB)
     points_value: Mapped[int] = mapped_column(Integer, nullable=False)
     is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     late_policy: Mapped[str] = mapped_column(Text, nullable=False)
@@ -216,6 +222,8 @@ class AssessmentCriterion(Base):
     # 1-based order on P12. Unique per assignment so the checklist has one shape.
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    # The optional second line under the criterion on P12, such as "One sentence each is enough".
+    detail: Mapped[str | None] = mapped_column(Text)
     max_points: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
