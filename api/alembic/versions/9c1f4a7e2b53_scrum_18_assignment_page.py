@@ -1,7 +1,7 @@
 """SCRUM-18 what the assignment page shows
 
 Revision ID: 9c1f4a7e2b53
-Revises: 4d2e8b7c1a90
+Revises: ad193b6e2c70
 Create Date: 2026-11-15
 
 The assignment page (P12) shows the full description, reference links,
@@ -16,7 +16,7 @@ had a column:
 
 All four are nullable, so existing rows are untouched.
 
-Follows SCRUM-22's 4d2e8b7c1a90 (CONTRIBUTING, Migrations).
+Follows SCRUM-19's ad193b6e2c70, which merged first (CONTRIBUTING, Migrations).
 """
 from typing import Sequence, Union
 
@@ -26,7 +26,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '9c1f4a7e2b53'
-down_revision: Union[str, Sequence[str], None] = '4d2e8b7c1a90'
+down_revision: Union[str, Sequence[str], None] = 'ad193b6e2c70'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
