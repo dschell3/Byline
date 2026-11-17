@@ -42,6 +42,20 @@ def clean_name(name: str) -> str:
     return base[:MAX_NAME_CHARS] or "file"
 
 
+def uploading_membership(db: Session, caller: Person) -> Membership | None:
+    """The membership an upload is filed under: an active member one, else any active one.
+
+    Same choice as the home screen (routers/me.py), so a person in two
+    organizations uploads into the one where they are an intern.
+    """
+    rows = db.scalars(
+        select(Membership)
+        .where(Membership.person_id == caller.id, Membership.is_active.is_(True))
+        .order_by(Membership.id)
+    ).all()
+    return next((m for m in rows if m.role == "member"), rows[0] if rows else None)
+
+
 def begin_upload(
     db: Session, uploader: Membership, name: str, content_type: str, size_bytes: int
 ) -> StoredFile:
