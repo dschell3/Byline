@@ -21,11 +21,17 @@ pip install -r requirements.txt
 
 ## Configuration
 
-The app reads a single variable from the environment.
+The app reads these from the environment (`api/config.py`).
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string. There is no default, so anything that touches the database fails loudly without it. |
+| `STORAGE_BACKEND` | `local` (default) or `r2`. See [File storage](#file-storage-scrum-83). |
+| `LOCAL_STORAGE_DIR` | Where the local backend keeps files. Defaults to `byline-files` under the system temp directory. |
+| `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | The bucket, when `STORAGE_BACKEND=r2`. All four are required. |
+
+The password-reset mailer reads its own `RESET_*` variables; see
+[Password reset](#password-reset-scrum-10).
 
 For local work put it in an `api/.env` file, which is gitignored:
 
@@ -324,6 +330,97 @@ The assignment page (P12, `/a/:id` in the web app) reads one endpoint.
 `scripts/seed_assignment.py` writes an assignment with all of this filled in
 and no submission, for local and staging use until supervisors can author
 assignments in the app (P22).
+
+## File storage (SCRUM-83)
+
+Files never pass through the API. The browser asks for an upload URL, PUTs
+the bytes straight to storage, then confirms; a download is a short-lived URL
+handed out after the access check. That is what makes the progress bar on
+the submit page real and keeps 25 MB uploads off the Render instance.
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `GET /files/limits` | No session needed. `{"max_upload_mb", "allowed_types", "allowed_extensions"}`, so the form states the limits before a file is picked. |
+| `POST /files` | Session required. `{"name", "content_type", "size_bytes"}` → 201 `{"id", "name", "content_type", "size_bytes", "status": "pending", "upload_url"}`. 413 `file_too_large` over the limit, 415 `file_type_not_allowed` for a type or extension not on the list, 403 for a person with no active membership. Nothing is stored on a refusal. |
+| `POST /files/{id}/complete` | Uploader only. Confirms the object is in storage at the declared size and marks the row `complete`. 409 `upload_incomplete` until it is, so the browser retries the PUT. 403 for anyone else and for an id that does not exist. |
+| `GET /files/{id}` | Session required. `{..., "download_url"}` for a file the caller may open; 403 otherwise and for a missing id alike. 409 while the upload is still pending. |
+| `PUT`/`GET /files/local/{key}` | The local backend's stand-in for the bucket. 404 on any other backend, so they never exist on Render. |
+
+**Who may open a file** (`files.can_download`): the uploader always; a file
+on a submission follows the submission's rule, the member who made it or a
+supervisor or admin in the same organization; a profile photo is visible to
+anyone active in that organization. Everyone else gets the same 403 as for
+an id that does not exist.
+
+**Limits** (`storage.py`): 25 MB, and a fixed list of content types with the
+extensions each may carry: PDF, PNG, JPEG, GIF, WebP, plain text, Markdown,
+CSV, ZIP and the Word, Excel and PowerPoint formats. Both the declared type
+and the extension must match, so a renamed executable is refused. Change the
+list in one place and `/files/limits` follows.
+
+**Keys** are random under `org-{id}/`, keeping only the extension. The
+filename the person chose lives in `stored_file.name` and is sent back as the
+download filename.
+
+### Local backend
+
+The default. `STORAGE_BACKEND=local` keeps files in a directory on this
+machine, so development and CI need no bucket or credentials. In the compose
+stack they live in the `files` volume and survive a rebuild.
+
+### Cloudflare R2
+
+Staging and production use `STORAGE_BACKEND=r2`. R2 is S3-compatible; the
+API uses boto3 only to sign URLs and to HEAD and DELETE objects.
+
+Setting up a bucket, once per account:
+
+1. Cloudflare dashboard → **R2 Object Storage** → **Create bucket**. Name it
+   `byline-files` (any name; it becomes `R2_BUCKET`). Location: automatic.
+2. **Manage R2 API Tokens** → **Create API token**: permission *Object Read
+   & Write*, scoped to that bucket only. Copy the **Access Key ID** and
+   **Secret Access Key**, and the S3 endpoint shown on the same page
+   (`https://<account-id>.r2.cloudflarestorage.com`). The secret is shown
+   once.
+3. On the bucket, **Settings → CORS policy**, paste the rule below with the
+   web origin(s) that will upload. `PUT` is the browser upload, `GET` the
+   download, and the two headers are the ones the presigned PUT signs.
+
+   ```json
+   [
+     {
+       "AllowedOrigins": [
+         "https://byline-web-187u.onrender.com",
+         "http://localhost:5173"
+       ],
+       "AllowedMethods": ["GET", "PUT"],
+       "AllowedHeaders": ["Content-Type", "Content-Length"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+4. Render → `byline-api` → **Environment**: set `STORAGE_BACKEND=r2` and the
+   four `R2_*` values. Never put them in a file in this repository or paste
+   them into chat; the dashboard is where they live.
+
+The bucket is on a personal Cloudflare account for now and moves into The
+Emerson Empire's account under SCRUM-75: create it there the same way, swap
+the four values on Render, and copy the objects across with `rclone` or the
+dashboard. Keys are the same either side.
+
+### Testing against the real bucket
+
+Every storage test runs on the local backend or against a stubbed client, so
+the suite needs no network. One test, `test_real_bucket_round_trip`, uploads,
+downloads and deletes a small object in the real bucket. It skips unless the
+four `R2_*` variables are set, so CI never touches R2:
+
+```bash
+R2_ENDPOINT=... R2_BUCKET=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
+  python -m pytest tests/test_storage.py -k real_bucket
+```
 
 ## Tests
 
