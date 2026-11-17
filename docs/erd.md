@@ -1,6 +1,6 @@
 # Byline ERD (SCRUM-67)
 
-The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11, `password_reset_token` from SCRUM-10, `email_verification` from SCRUM-12, and `assessment_criterion`, `review_criterion_score` and `submission_comment` from SCRUM-22, with their relationships, foreign keys and cardinality.
+The twelve tables from SCRUM-5, plus `auth_session` from SCRUM-13, `invite` from SCRUM-11, `password_reset_token` from SCRUM-10, `email_verification` from SCRUM-12, and `assessment_criterion`, `review_criterion_score` and `submission_comment` from SCRUM-22, and `stored_file` from SCRUM-83, with their relationships, foreign keys and cardinality.
 The diagram is at the bottom (Mermaid, so GitHub draws it).
 
 Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
@@ -35,6 +35,7 @@ Database: Postgres. Models and the first Alembic migration come in SCRUM-68.
 | 17 | assessment_criterion | One line of the checklist an assignment is scored against (SCRUM-18, SCRUM-22): `position`, `text`, optional `detail`, `max_points`. | assignment 1–many. Unique on (assignment_id, position) |
 | 18 | review_criterion_score | A review's `score` and optional `note` against one criterion (SCRUM-22). | review 1–many, assessment_criterion 1–many. Unique on (review_id, criterion_id) |
 | 19 | submission_comment | A comment between member and supervisor on one version of a submission (SCRUM-22): `body`, optional `parent_comment_id` for one level of replies. | submission 1–many, written by a membership |
+| 20 | stored_file | One uploaded object in file storage (SCRUM-83): `key` (the object key in the bucket), `name`, `content_type`, `size_bytes`, `status` (pending until the bucket confirms it). A submission names its files by key in `file_keys`; a profile photo by `person.photo_file_id`. | organization 1–many, uploaded by a membership. Unique on key |
 
 ## Decisions
 
@@ -132,6 +133,9 @@ erDiagram
     membership ||--o{ invite : "sent by"
     person ||--o{ email_verification : "confirms"
     person ||--o{ password_reset_token : "resets via"
+    organization ||--o{ stored_file : "owns"
+    membership ||--o{ stored_file : "uploads"
+    stored_file |o--o| person : "photo of"
 
     organization {
         bigint id PK
@@ -149,6 +153,7 @@ erDiagram
         timestamptz email_bounced_at "nullable"
         timestamptz email_verified_at "nullable, set by a verification link"
         text photo_url "nullable, https URL until R2 upload"
+        bigint photo_file_id FK "nullable, stored_file (SCRUM-83)"
         text contact_preference "NOT NULL: email | discord | phone, default email"
         text contact_detail "nullable, handle or number"
         boolean email_assignments "NOT NULL, default true"
@@ -208,6 +213,7 @@ erDiagram
         boolean is_mandatory "NOT NULL, default true"
         text late_policy "NOT NULL: not_accepted | accepted_full_points | accepted_half_points"
         int late_cutoff_hours "nullable, hours after due_at"
+        text submission_kind "nullable, text | link | pr | file (SCRUM-83)"
         timestamptz due_at
         timestamptz created_at "NOT NULL"
     }
@@ -254,6 +260,18 @@ erDiagram
         bigint parent_comment_id FK "nullable, a top-level comment on the same submission"
         text body "NOT NULL"
         timestamptz created_at "NOT NULL"
+    }
+    stored_file {
+        bigint id PK
+        bigint organization_id FK "NOT NULL"
+        bigint uploaded_by_membership_id FK "NOT NULL"
+        text key "NOT NULL, unique, the object key in the bucket"
+        text name "NOT NULL, the filename the person chose"
+        text content_type "NOT NULL"
+        bigint size_bytes "NOT NULL, >= 0"
+        text status "NOT NULL, pending | complete"
+        timestamptz created_at "NOT NULL"
+        timestamptz completed_at "nullable"
     }
     points_ledger {
         bigint id PK
