@@ -18,7 +18,17 @@ import ratelimit
 import sessions
 from db import as_psycopg_url, get_db
 from main import app
-from models import Assignment, Membership, Organization, Person, Review, Submission, Team
+from models import (
+    Assignment,
+    Membership,
+    Organization,
+    Person,
+    Review,
+    StoredFile,
+    Submission,
+    Team,
+)
+from routers.submit_work import FILES_NOT_READY
 from security import hash_password
 from sessions import NOT_ALLOWED
 from submissions import previous_feedback
@@ -346,6 +356,96 @@ def test_invalid_payloads_are_rejected(
         select(Submission).where(Submission.assignment_id == world.assignment_id)
     ).all()
     assert saved == []
+
+
+# --- SCRUM-83: file submissions ----------------------------------------------------------
+
+
+def stored(
+    db: Session, uploader_id: int, status: str = "complete", name: str = "a.pdf"
+) -> StoredFile:
+    org_id = db.get(Membership, uploader_id).organization_id  # type: ignore[union-attr]
+    row = StoredFile(
+        organization_id=org_id,
+        uploaded_by_membership_id=uploader_id,
+        key=f"org-{org_id}/{name}",
+        name=name,
+        content_type="application/pdf",
+        size_bytes=10,
+        status=status,
+        completed_at=sessions.now() if status == "complete" else None,
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
+def submit_files(client: TestClient, world: World, file_ids: list[int], note: str = "") -> Response:
+    return client.post(
+        f"/assignments/{world.assignment_id}/submissions",
+        json={"kind": "file", "file_ids": file_ids, "content": note},
+    )
+
+
+def test_file_submission_writes_the_keys_in_order(
+    client: TestClient, db: Session, world: World
+) -> None:
+    first = stored(db, world.member_id, name="brief.pdf")
+    second = stored(db, world.member_id, name="sources.pdf")
+    sign_in(client)
+
+    response = submit_files(client, world, [second.id, first.id], note="Brief and sources.")
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["kind"] == "file"
+    assert body["file_ids"] == [second.id, first.id]
+    assert body["content"] == "Brief and sources."
+
+    saved = db.get(Submission, body["id"])
+    assert saved is not None
+    assert saved.submission_kind == "file"
+    assert saved.file_keys == [second.key, first.key]
+    assert saved.content == "Brief and sources."
+
+
+def test_file_submission_without_a_note_stores_null_content(
+    client: TestClient, db: Session, world: World
+) -> None:
+    row = stored(db, world.member_id)
+    sign_in(client)
+    response = submit_files(client, world, [row.id])
+    assert response.status_code == 201, response.text
+    saved = db.get(Submission, response.json()["id"])
+    assert saved is not None and saved.content is None
+
+
+def test_file_submission_refuses_pending_foreign_and_missing_files(
+    client: TestClient, db: Session, world: World
+) -> None:
+    pending = stored(db, world.member_id, status="pending", name="pending.pdf")
+    other = db.scalar(select(Membership).join(Person).where(Person.email == OTHER_MEMBER))
+    assert other is not None
+    foreign = stored(db, other.id, name="foreign.pdf")
+    mine = stored(db, world.member_id, name="mine.pdf")
+    sign_in(client)
+
+    for ids in ([pending.id], [foreign.id], [mine.id + 100_000], [mine.id, foreign.id]):
+        response = submit_files(client, world, ids)
+        assert response.status_code == 422, ids
+        assert response.json()["detail"] == FILES_NOT_READY
+
+    assert db.scalars(select(Submission)).all() == []
+
+
+def test_text_submissions_still_carry_no_files(
+    client: TestClient, db: Session, world: World
+) -> None:
+    sign_in(client)
+    response = submit(client, world)
+    assert response.status_code == 201
+    assert response.json()["file_ids"] == []
+    saved = db.get(Submission, response.json()["id"])
+    assert saved is not None and saved.file_keys is None
 
 
 # --- SCRUM-21: resubmission ----------------------------------------------------------------

@@ -74,4 +74,40 @@ def test_rejects_invalid_github_pr_urls(value: str) -> None:
 
 def test_rejects_unsupported_submission_type() -> None:
     with pytest.raises(ValidationError):
-        SubmitWorkRequest(kind="file", content="something.pdf")
+        SubmitWorkRequest(kind="video", content="something.mp4")
+
+
+# --- SCRUM-83: file submissions ---------------------------------------------
+
+
+def test_file_submission_needs_at_least_one_file() -> None:
+    with pytest.raises(ValidationError, match="at least one file"):
+        SubmitWorkRequest(kind="file")
+
+
+def test_file_submission_keeps_the_note_and_the_ids() -> None:
+    request = SubmitWorkRequest(kind="file", file_ids=[3, 1], content="  Two drafts.  ")
+    assert request.file_ids == [3, 1]
+    assert request.content == "Two drafts."
+
+
+def test_file_submission_note_is_optional() -> None:
+    assert SubmitWorkRequest(kind="file", file_ids=[1]).content == ""
+
+
+def test_file_submission_rejects_duplicates_and_too_many() -> None:
+    with pytest.raises(ValidationError, match="once"):
+        SubmitWorkRequest(kind="file", file_ids=[1, 1])
+    with pytest.raises(ValidationError):
+        SubmitWorkRequest(kind="file", file_ids=list(range(1, 12)))
+
+
+@pytest.mark.parametrize("kind", ["text", "link", "pr"])
+def test_files_only_go_with_a_file_submission(kind: str) -> None:
+    with pytest.raises(ValidationError, match="file submission"):
+        SubmitWorkRequest(kind=kind, content="https://github.com/o/r/pull/1", file_ids=[1])
+
+
+def test_text_still_needs_content() -> None:
+    with pytest.raises(ValidationError):
+        SubmitWorkRequest(kind="text")
