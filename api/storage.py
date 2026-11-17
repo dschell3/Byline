@@ -18,6 +18,10 @@ from typing import Protocol
 
 from config import Settings
 
+# How long a presigned URL stays valid. Long enough for a 25 MB upload on a
+# slow connection, short enough that a leaked link is soon useless.
+URL_TTL_SECONDS = 15 * 60
+
 MAX_UPLOAD_MB = 25
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 
@@ -142,11 +146,94 @@ class LocalBackend:
         return path.read_bytes() if path.is_file() else None
 
 
+class R2Backend:
+    """Cloudflare R2 through its S3 API, with boto3 signing the URLs.
+
+    The browser talks to the bucket directly with the presigned URLs; the
+    API only ever calls HEAD and DELETE. R2 is S3-compatible, so the same
+    class would work against S3 or MinIO by changing the endpoint.
+    """
+
+    def __init__(
+        self,
+        endpoint: str,
+        bucket: str,
+        access_key_id: str,
+        secret_access_key: str,
+    ) -> None:
+        import boto3
+        from botocore.config import Config
+
+        self.bucket = bucket
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            # R2 ignores the region but boto3 insists on one; "auto" is what Cloudflare documents.
+            region_name="auto",
+            config=Config(signature_version="s3v4"),
+        )
+
+    def upload_url(self, key: str, content_type: str, size_bytes: int) -> str:
+        # ContentType and ContentLength are signed, so the browser must send
+        # exactly what was declared or the bucket refuses the PUT.
+        return self.client.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": self.bucket,
+                "Key": key,
+                "ContentType": content_type,
+                "ContentLength": size_bytes,
+            },
+            ExpiresIn=URL_TTL_SECONDS,
+            HttpMethod="PUT",
+        )
+
+    def download_url(self, key: str, name: str) -> str:
+        safe_name = name.replace('"', "")
+        return self.client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": self.bucket,
+                "Key": key,
+                "ResponseContentDisposition": f'attachment; filename="{safe_name}"',
+            },
+            ExpiresIn=URL_TTL_SECONDS,
+        )
+
+    def size_of(self, key: str) -> int | None:
+        from botocore.exceptions import ClientError
+
+        try:
+            head = self.client.head_object(Bucket=self.bucket, Key=key)
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
+                return None
+            raise
+        return int(head["ContentLength"])
+
+    def delete(self, key: str) -> None:
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+
+
 def backend_for(settings: Settings) -> StorageBackend:
-    """The backend the settings name. R2 arrives with the next commit on this card."""
+    """The backend the settings name: local by default, R2 when all four R2 values are set."""
     if settings.storage_backend == "local":
         return LocalBackend(settings.local_storage_dir)
-    raise NotImplementedError(f"storage backend {settings.storage_backend!r} is not wired yet")
+    missing = [
+        name
+        for name in ("r2_endpoint", "r2_bucket", "r2_access_key_id", "r2_secret_access_key")
+        if not getattr(settings, name)
+    ]
+    if missing:
+        raise RuntimeError(f"STORAGE_BACKEND=r2 needs {', '.join(n.upper() for n in missing)}")
+    return R2Backend(
+        endpoint=settings.r2_endpoint or "",
+        bucket=settings.r2_bucket or "",
+        access_key_id=settings.r2_access_key_id or "",
+        secret_access_key=settings.r2_secret_access_key or "",
+    )
 
 
 def object_key(organization_id: int, name: str) -> str:

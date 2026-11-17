@@ -1,12 +1,15 @@
 """SCRUM-83: the storage interface on the local backend, and the upload limits. No database."""
 
+import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from botocore.stub import Stubber
 
 import storage
 from config import Settings
-from storage import LocalBackend
+from storage import LocalBackend, R2Backend
 
 
 @pytest.mark.parametrize(
@@ -86,3 +89,104 @@ def test_backend_for_defaults_to_local(tmp_path: Path) -> None:
     backend = storage.backend_for(settings)
     assert isinstance(backend, LocalBackend)
     assert backend.root == tmp_path
+
+
+# --- R2 backend, signing only (no network) ----------------------------------
+
+
+@pytest.fixture
+def r2() -> R2Backend:
+    return R2Backend(
+        endpoint="https://example.r2.cloudflarestorage.com",
+        bucket="byline-test",
+        access_key_id="AKIAFAKEFAKEFAKEFAKE",
+        secret_access_key="not-a-real-secret",
+    )
+
+
+def test_r2_upload_url_is_a_signed_put_for_that_key(r2: R2Backend) -> None:
+    url = r2.upload_url("org-1/abc.pdf", "application/pdf", 1234)
+    parts = urlsplit(url)
+    assert parts.scheme == "https"
+    assert parts.netloc == "example.r2.cloudflarestorage.com"
+    assert parts.path == "/byline-test/org-1/abc.pdf"
+    query = parse_qs(parts.query)
+    assert query["X-Amz-Algorithm"] == ["AWS4-HMAC-SHA256"]
+    assert query["X-Amz-Expires"] == [str(storage.URL_TTL_SECONDS)]
+    assert "X-Amz-Signature" in query
+    assert "not-a-real-secret" not in url
+
+
+def test_r2_download_url_names_the_file(r2: R2Backend) -> None:
+    url = r2.download_url("org-1/abc.pdf", 'My "Report".pdf')
+    query = parse_qs(urlsplit(url).query)
+    assert query["response-content-disposition"] == ['attachment; filename="My Report.pdf"']
+
+
+def test_r2_size_of_reads_head_and_treats_404_as_missing(r2: R2Backend) -> None:
+    with Stubber(r2.client) as stub:
+        stub.add_response(
+            "head_object",
+            {"ContentLength": 1234},
+            {"Bucket": "byline-test", "Key": "org-1/abc.pdf"},
+        )
+        stub.add_client_error(
+            "head_object",
+            service_error_code="404",
+            http_status_code=404,
+            expected_params={"Bucket": "byline-test", "Key": "org-1/missing.pdf"},
+        )
+        assert r2.size_of("org-1/abc.pdf") == 1234
+        assert r2.size_of("org-1/missing.pdf") is None
+
+
+def test_r2_delete_calls_delete_object(r2: R2Backend) -> None:
+    with Stubber(r2.client) as stub:
+        stub.add_response("delete_object", {}, {"Bucket": "byline-test", "Key": "org-1/abc.pdf"})
+        r2.delete("org-1/abc.pdf")
+
+
+def test_backend_for_r2_needs_all_four_values() -> None:
+    settings = Settings(
+        database_url="postgresql://x", storage_backend="r2", r2_endpoint="https://x", r2_bucket="b"
+    )
+    with pytest.raises(RuntimeError, match="R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY"):
+        storage.backend_for(settings)
+
+
+# --- The real bucket. Skipped in CI; run locally with the four R2 variables set.
+
+
+R2_VARS = ("R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
+
+
+@pytest.mark.skipif(
+    not all(os.environ.get(name) for name in R2_VARS),
+    reason="needs the four R2_* variables for a real bucket",
+)
+def test_real_bucket_round_trip() -> None:
+    import httpx
+
+    backend = R2Backend(
+        endpoint=os.environ["R2_ENDPOINT"],
+        bucket=os.environ["R2_BUCKET"],
+        access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+        secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+    )
+    key = storage.object_key(0, "round-trip.txt")
+    data = b"SCRUM-83 round trip"
+    try:
+        put = httpx.put(
+            backend.upload_url(key, "text/plain", len(data)),
+            content=data,
+            headers={"Content-Type": "text/plain"},
+        )
+        assert put.status_code == 200, put.text
+        assert backend.size_of(key) == len(data)
+        got = httpx.get(backend.download_url(key, "round-trip.txt"))
+        assert got.status_code == 200
+        assert got.content == data
+        assert got.headers["content-disposition"] == 'attachment; filename="round-trip.txt"'
+    finally:
+        backend.delete(key)
+    assert backend.size_of(key) is None
