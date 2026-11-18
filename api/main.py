@@ -9,6 +9,7 @@ from routers import (
     me,
     members,
     reset_password,
+    review,
     submissions,
     submit_work,
     verify,
@@ -21,6 +22,7 @@ app.include_router(invites.router)
 app.include_router(me.router)
 app.include_router(members.router)
 app.include_router(reset_password.router)
+app.include_router(review.router)
 app.include_router(submissions.router)
 app.include_router(verify.router)
 app.include_router(submit_work.router)
