@@ -1,32 +1,26 @@
 """Where uploaded files live (SCRUM-83).
 
-Two backends behind one interface. ``LocalBackend`` keeps objects in a
-directory on this machine, for development and CI; ``R2Backend`` is
-Cloudflare R2 through its S3 API. The browser never sends bytes through the
-API: it gets a presigned URL and uploads straight to the backend, so the
-progress bar on the submit page is real.
-
-The size and type limits live here too, so the API can state them before
-anyone picks a file and refuse an upload before it starts.
+The browser never sends bytes through the API: it gets a presigned URL and
+uploads straight to the backend. ``LocalBackend`` is a directory on this
+machine, for development and CI; ``R2Backend`` is Cloudflare R2 through its
+S3 API. The upload limits live here so the API can state them before anyone
+picks a file.
 """
 
 import os
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from config import Settings
 
-# How long a presigned URL stays valid. Long enough for a 25 MB upload on a
-# slow connection, short enough that a leaked link is soon useless.
+# Long enough for a 25 MB upload on a slow connection; short enough that a leaked link soon dies.
 URL_TTL_SECONDS = 15 * 60
 
 MAX_UPLOAD_MB = 25
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 
-# Content type -> the extensions it may carry. Nothing executable, nothing the
-# browser would run inline.
+# Content type -> the extensions it may carry. Nothing executable, nothing a browser runs inline.
 ALLOWED_TYPES: dict[str, tuple[str, ...]] = {
     "application/pdf": (".pdf",),
     "image/png": (".png",),
@@ -44,77 +38,52 @@ ALLOWED_TYPES: dict[str, tuple[str, ...]] = {
     "application/vnd.ms-powerpoint": (".ppt",),
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": (".pptx",),
 }
+ALLOWED_EXTENSIONS = sorted({ext for exts in ALLOWED_TYPES.values() for ext in exts})
 
-# Error codes the API returns, so the form can tell the two refusals apart.
 FILE_TOO_LARGE = "file_too_large"
 FILE_TYPE_NOT_ALLOWED = "file_type_not_allowed"
 
 
 def check_upload(name: str, content_type: str, size_bytes: int) -> str | None:
-    """The error code for a file that must not be uploaded, or None when it may be.
+    """The error code for a file that must not be uploaded, or None.
 
-    Type is judged on both the declared content type and the extension, so a
-    renamed executable with a PDF content type is still refused.
+    Both the declared type and the extension must match, so a renamed
+    executable with a PDF content type is still refused.
     """
     if size_bytes <= 0 or size_bytes > MAX_UPLOAD_BYTES:
         return FILE_TOO_LARGE
     extensions = ALLOWED_TYPES.get(content_type.lower())
-    if extensions is None:
-        return FILE_TYPE_NOT_ALLOWED
-    if not name.lower().endswith(extensions):
+    if extensions is None or not name.lower().endswith(extensions):
         return FILE_TYPE_NOT_ALLOWED
     return None
 
 
-@dataclass(frozen=True)
-class Limits:
-    """What the form shows before a file is picked."""
-
-    max_upload_mb: int
-    allowed_types: tuple[str, ...]
-    allowed_extensions: tuple[str, ...]
-
-
-def limits() -> Limits:
-    extensions = sorted({ext for exts in ALLOWED_TYPES.values() for ext in exts})
-    return Limits(
-        max_upload_mb=MAX_UPLOAD_MB,
-        allowed_types=tuple(sorted(ALLOWED_TYPES)),
-        allowed_extensions=tuple(extensions),
-    )
+def object_key(organization_id: int, name: str) -> str:
+    """A fresh key under the organization's prefix. Only the extension comes from the name."""
+    return f"org-{organization_id}/{os.urandom(16).hex()}{Path(name).suffix.lower()}"
 
 
 class StorageBackend(Protocol):
-    """What the files router needs from wherever the bytes live."""
-
     def upload_url(self, key: str, content_type: str, size_bytes: int) -> str:
-        """A URL the browser PUTs the file to. Short-lived."""
+        """A URL the browser PUTs the file to."""
 
     def download_url(self, key: str, name: str) -> str:
-        """A URL that serves the object as an attachment named ``name``. Short-lived."""
+        """A URL that serves the object as an attachment named ``name``."""
 
     def size_of(self, key: str) -> int | None:
         """The stored object's size, or None when there is no such object."""
 
-    def delete(self, key: str) -> None:
-        """Remove the object. Missing objects are not an error."""
 
-
-# Where the local backend's presigned URLs point. The files router serves them
-# only when STORAGE_BACKEND=local, so they never exist on Render.
+# The files router serves these only on the local backend, so they never exist on Render.
 LOCAL_URL_PREFIX = "/api/files/local/"
 
 
 class LocalBackend:
-    """Objects as files under one directory. No credentials, no network."""
-
     def __init__(self, directory: str | Path | None = None) -> None:
-        root = Path(directory) if directory else Path(tempfile.gettempdir()) / "byline-files"
-        root.mkdir(parents=True, exist_ok=True)
-        self.root = root
+        self.root = Path(directory) if directory else Path(tempfile.gettempdir()) / "byline-files"
+        self.root.mkdir(parents=True, exist_ok=True)
 
     def _path(self, key: str) -> Path:
-        # Keys are generated by the API, but never let one escape the directory.
         path = (self.root / key).resolve()
         if self.root.resolve() not in path.parents:
             raise ValueError("key leaves the storage directory")
@@ -130,12 +99,6 @@ class LocalBackend:
         path = self._path(key)
         return path.stat().st_size if path.is_file() else None
 
-    def delete(self, key: str) -> None:
-        path = self._path(key)
-        if path.is_file():
-            path.unlink()
-
-    # The two the dev-only route uses in place of a bucket.
     def write(self, key: str, data: bytes) -> None:
         path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -147,19 +110,10 @@ class LocalBackend:
 
 
 class R2Backend:
-    """Cloudflare R2 through its S3 API, with boto3 signing the URLs.
-
-    The browser talks to the bucket directly with the presigned URLs; the
-    API only ever calls HEAD and DELETE. R2 is S3-compatible, so the same
-    class would work against S3 or MinIO by changing the endpoint.
-    """
+    """R2 is S3-compatible; the same class works against S3 or MinIO by changing the endpoint."""
 
     def __init__(
-        self,
-        endpoint: str,
-        bucket: str,
-        access_key_id: str,
-        secret_access_key: str,
+        self, endpoint: str, bucket: str, access_key_id: str, secret_access_key: str
     ) -> None:
         import boto3
         from botocore.config import Config
@@ -170,14 +124,12 @@ class R2Backend:
             endpoint_url=endpoint,
             aws_access_key_id=access_key_id,
             aws_secret_access_key=secret_access_key,
-            # R2 ignores the region but boto3 insists on one; "auto" is what Cloudflare documents.
-            region_name="auto",
+            region_name="auto",  # R2 ignores the region; boto3 insists on one
             config=Config(signature_version="s3v4"),
         )
 
     def upload_url(self, key: str, content_type: str, size_bytes: int) -> str:
-        # ContentType and ContentLength are signed, so the browser must send
-        # exactly what was declared or the bucket refuses the PUT.
+        # Type and length are signed, so the browser must send exactly what was declared.
         return self.client.generate_presigned_url(
             "put_object",
             Params={
@@ -191,14 +143,10 @@ class R2Backend:
         )
 
     def download_url(self, key: str, name: str) -> str:
-        safe_name = name.replace('"', "")
+        disposition = f'attachment; filename="{name.replace(chr(34), "")}"'
         return self.client.generate_presigned_url(
             "get_object",
-            Params={
-                "Bucket": self.bucket,
-                "Key": key,
-                "ResponseContentDisposition": f'attachment; filename="{safe_name}"',
-            },
+            Params={"Bucket": self.bucket, "Key": key, "ResponseContentDisposition": disposition},
             ExpiresIn=URL_TTL_SECONDS,
         )
 
@@ -206,41 +154,24 @@ class R2Backend:
         from botocore.exceptions import ClientError
 
         try:
-            head = self.client.head_object(Bucket=self.bucket, Key=key)
+            return int(self.client.head_object(Bucket=self.bucket, Key=key)["ContentLength"])
         except ClientError as error:
             if error.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
                 return None
             raise
-        return int(head["ContentLength"])
 
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
 
 def backend_for(settings: Settings) -> StorageBackend:
-    """The backend the settings name: local by default, R2 when all four R2 values are set."""
     if settings.storage_backend == "local":
         return LocalBackend(settings.local_storage_dir)
-    missing = [
-        name
+    values = {
+        name: getattr(settings, name)
         for name in ("r2_endpoint", "r2_bucket", "r2_access_key_id", "r2_secret_access_key")
-        if not getattr(settings, name)
-    ]
+    }
+    missing = [name.upper() for name, value in values.items() if not value]
     if missing:
-        raise RuntimeError(f"STORAGE_BACKEND=r2 needs {', '.join(n.upper() for n in missing)}")
-    return R2Backend(
-        endpoint=settings.r2_endpoint or "",
-        bucket=settings.r2_bucket or "",
-        access_key_id=settings.r2_access_key_id or "",
-        secret_access_key=settings.r2_secret_access_key or "",
-    )
-
-
-def object_key(organization_id: int, name: str) -> str:
-    """A fresh key under the organization's prefix, keeping only the extension.
-
-    The person's filename stays in stored_file.name; the key carries no
-    user-chosen text, so nothing in it needs escaping or can collide.
-    """
-    extension = Path(name).suffix.lower()
-    return f"org-{organization_id}/{os.urandom(16).hex()}{extension}"
+        raise RuntimeError(f"STORAGE_BACKEND=r2 needs {', '.join(missing)}")
+    return R2Backend(*values.values())

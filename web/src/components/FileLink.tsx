@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { downloadUrl, formatSize } from '../lib/files';
+import { fileSize } from '../lib/assignment';
+import { downloadUrl } from '../lib/files';
 
-// SCRUM-83: a file on a submission. The download URL is short-lived, so it is
-// fetched on the click, not when the page loads; the browser then saves the
-// file (the API sends it as an attachment) without leaving this page.
+// SCRUM-83: the download URL is short-lived, so it is fetched on the click. The API sends the
+// file as an attachment, so the browser saves it without leaving this page.
 
 type Props = { fileId: number; name: string; sizeBytes: number };
 
@@ -32,7 +32,7 @@ export function FileLink({ fileId, name, sizeBytes }: Props) {
       >
         {name}
       </button>
-      <span className="text-meta text-ink-meta">{formatSize(sizeBytes)}</span>
+      <span className="text-meta text-ink-meta">{fileSize(sizeBytes)}</span>
       {state === 'fetching' && <span className="text-meta text-ink-meta">Opening…</span>}
       {state === 'refused' && (
         <span role="alert" className="text-meta text-status-overdue-text">

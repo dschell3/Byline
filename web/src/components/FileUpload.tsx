@@ -1,19 +1,18 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from './ui/Button';
+import { fileSize } from '../lib/assignment';
 import {
   checkFile,
   describeLimits,
   failureMessage,
-  formatSize,
   PROBLEM_MESSAGE,
   uploadFile,
   type Limits,
   type StoredFile,
 } from '../lib/files';
 
-// SCRUM-83: the one file picker every screen uses: P13 attachments, P18 photo.
-// Picks go straight to storage with a real progress bar; a bad pick is refused
-// before any request leaves, with the same reason the API would give.
+// SCRUM-83: the one file picker for P13 attachments and the P18 photo. The parent owns the
+// list of completed files; a bad pick is refused before any request leaves.
 
 type InFlight = { key: number; name: string; progress: number; error: string | null };
 
@@ -124,7 +123,7 @@ export function FileUpload({
             >
               <span className="min-w-0 truncate text-body text-ink">
                 {file.name}
-                <span className="ml-2 text-meta text-ink-meta">{formatSize(file.size_bytes)}</span>
+                <span className="ml-2 text-meta text-ink-meta">{fileSize(file.size_bytes)}</span>
               </span>
               <Button
                 type="button"

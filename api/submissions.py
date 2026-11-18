@@ -64,7 +64,7 @@ class CommentOut(BaseModel):
 
 
 class FileOut(BaseModel):
-    """A file on a version (SCRUM-83). The id is what GET /files/{id} takes."""
+    """A file on a version. The id is what GET /files/{id} takes."""
 
     id: int
     name: str
@@ -78,8 +78,7 @@ class VersionOut(BaseModel):
     status: str
     submitted_at: datetime
     file_keys: list[str]
-    # The stored_file rows behind file_keys, in the same order. A key with no
-    # row (seed data from before SCRUM-83) is left out.
+    # The rows behind file_keys, in order. A key with no row (older seed data) is left out.
     files: list[FileOut]
     submission_kind: str | None
     content: str | None

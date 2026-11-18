@@ -4,21 +4,12 @@ Revision ID: d8e2f4a6b1c3
 Revises: 9c1f4a7e2b53
 Create Date: 2026-11-17
 
-Nothing on main could store a file. This adds the table the three screens
-plug into, and the two columns that point at it:
-
-- stored_file: one uploaded object. Written as ``pending`` before the bytes
-  leave the browser, ``complete`` once the object is confirmed in the bucket.
-  ``key`` is the object key, as submission.file_keys and
-  assignment.attachments already expect.
-- assignment.submission_kind: how the supervisor wants work handed in
-  (text, link, pr, file). The submit form opens on it. Nullable, so existing
-  assignments leave the choice to the member.
-- person.photo_file_id: the profile photo (P18), deferred since SCRUM-17.
-  Added as a separate constraint because stored_file reaches person through
-  membership, so the two tables must both exist first. It replaces
-  person.photo_url, the pasted-link stopgap from SCRUM-17, which is dropped
-  here: nothing on staging had set one.
+- stored_file: one uploaded object, ``pending`` until the bucket confirms it.
+  ``key`` is the object key submission.file_keys already expects.
+- assignment.submission_kind: the kind the submit form opens on. Nullable.
+- person.photo_file_id: the profile photo. Its FK is added last because
+  stored_file reaches person through membership. It replaces the pasted-link
+  person.photo_url, dropped here; nothing on staging had set one.
 
 Follows SCRUM-18's 9c1f4a7e2b53 (CONTRIBUTING, Migrations).
 """

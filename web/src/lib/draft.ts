@@ -5,8 +5,7 @@ import type { StoredFile } from './files';
 
 export type SubmissionKind = 'text' | 'link' | 'pr' | 'file';
 
-// values.file is the optional note that goes with attached files (SCRUM-83). The files
-// themselves are already in storage, so the draft only remembers which ones.
+// values.file is the note that goes with attached files; the files are already in storage.
 export type Draft = {
   kind: SubmissionKind;
   values: Record<SubmissionKind, string>;

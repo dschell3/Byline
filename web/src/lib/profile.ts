@@ -7,7 +7,7 @@ export type ContactPreference = 'email' | 'discord' | 'phone';
 export type Profile = {
   full_name: string;
   email: string;
-  // SCRUM-83: the uploaded photo, and a short-lived download URL for it. Both null without one.
+  // The uploaded photo and a short-lived download URL for it. Both null without one.
   photo_file_id: number | null;
   photo_url: string | null;
   timezone: string;
@@ -28,7 +28,7 @@ export type ProfilePatch = Partial<
 // What the form holds while it is being edited: text fields are always strings.
 export type ProfileForm = {
   full_name: string;
-  // The id of a finished image upload, or null for no photo (SCRUM-83).
+  // A finished image upload, or null for no photo.
   photo_file_id: number | null;
   timezone: string;
   contact_preference: ContactPreference;

@@ -79,7 +79,7 @@ export default function SubmitWorkPage() {
   const [draftState, setDraftState] = useState(() => openDraft(assignmentId, validId, user.id));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // SCRUM-83: every limit the form states comes from the API; the fallback mirrors it.
+  // Every limit the form states comes from the API; the fallback mirrors it.
   const [limits, setLimits] = useState<Limits>(FALLBACK_LIMITS);
   // A different assignment opens its own draft.
   if (draftState.assignmentId !== assignmentId || draftState.userId !== user.id) {
@@ -196,7 +196,7 @@ export default function SubmitWorkPage() {
           assignment: item ?? null,
         });
 
-        // SCRUM-83: open on the kind the supervisor asked for, unless a draft is already under way.
+        // Open on the kind the supervisor asked for, unless a draft is already under way.
         const wanted = item?.submission_kind;
         if (wanted) {
           setDraftState((current) =>

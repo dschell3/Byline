@@ -7,7 +7,6 @@ import {
   extensionOf,
   failureMessage,
   fetchLimits,
-  formatSize,
   imageLimits,
   uploadFile,
   type Limits,
@@ -186,7 +185,7 @@ describe('failureMessage', () => {
     expect(failureMessage({ kind: 'refused', problem: 'type_not_allowed' }, LIMITS)).toContain(
       '.pdf, .png',
     );
-    expect(failureMessage({ kind: 'connection_lost' }, LIMITS)).toContain('Nothing was attached');
+    expect(failureMessage({ kind: 'connection_lost' }, LIMITS)).toContain('saved on this device');
   });
 });
 
@@ -202,16 +201,6 @@ describe('downloadUrl', () => {
       await downloadUrl(42, vi.fn().mockResolvedValue(new Response('', { status: 403 }))),
     ).toBeNull();
     expect(await downloadUrl(42, vi.fn().mockRejectedValue(new Error('down')))).toBeNull();
-  });
-});
-
-describe('formatSize', () => {
-  test.each([
-    [512, '512 B'],
-    [2048, '2 KB'],
-    [3.5 * 1024 * 1024, '3.5 MB'],
-  ])('%d → %s', (bytes, text) => {
-    expect(formatSize(bytes)).toBe(text);
   });
 });
 

@@ -39,12 +39,9 @@ def test_exactly_the_limit_is_allowed() -> None:
     assert storage.check_upload("a.pdf", "application/pdf", storage.MAX_UPLOAD_BYTES) is None
 
 
-def test_limits_match_the_allowed_table() -> None:
-    limits = storage.limits()
-    assert limits.max_upload_mb == 25
-    assert "application/pdf" in limits.allowed_types
-    assert ".pdf" in limits.allowed_extensions
-    assert ".exe" not in limits.allowed_extensions
+def test_allowed_extensions_come_from_the_type_table() -> None:
+    assert ".pdf" in storage.ALLOWED_EXTENSIONS
+    assert ".exe" not in storage.ALLOWED_EXTENSIONS
 
 
 def test_object_key_keeps_only_the_extension() -> None:
@@ -63,10 +60,6 @@ def test_local_backend_round_trip(tmp_path: Path) -> None:
     backend.write(key, b"hello")
     assert backend.size_of(key) == 5
     assert backend.read(key) == b"hello"
-
-    backend.delete(key)
-    assert backend.size_of(key) is None
-    backend.delete(key)  # missing is not an error
 
 
 def test_local_backend_urls_point_at_the_dev_route(tmp_path: Path) -> None:

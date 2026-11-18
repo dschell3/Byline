@@ -151,8 +151,7 @@ function ProfileEditor({ profile }: { profile: Profile }) {
   const [badFields, setBadFields] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const zones = useMemo(() => timeZoneOptions(), []);
-  // SCRUM-83: the photo picker. A newly uploaded photo is previewed from its own download URL
-  // until Save, when the API's photo_url takes over.
+  // A newly uploaded photo is previewed from its own download URL until Save.
   const [limits, setLimits] = useState<Limits>(FALLBACK_LIMITS);
   const [picked, setPicked] = useState<StoredFile | null>(null);
   const [preview, setPreview] = useState<string | null>(null);

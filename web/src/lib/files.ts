@@ -1,10 +1,13 @@
 // SCRUM-83: upload a file straight to storage and get download links back.
-//
-// The API never carries the bytes. uploadFile asks it for an upload URL, PUTs
-// the file there (XHR, so the progress bar is real), then tells the API the
-// upload finished. Every function here takes injectable transports so the
-// tests run without a browser.
+// The API never carries the bytes: uploadFile asks for an upload URL, PUTs the
+// file there (XHR, so the progress bar is real), then confirms. Transports are
+// injectable so the tests run without a browser.
 import { apiFetch } from './auth';
+import {
+  classifyFailure,
+  FAILURE_MESSAGE as SUBMIT_FAILURE,
+  type SubmitFailure,
+} from './submitFailure';
 
 export type Limits = {
   max_upload_mb: number;
@@ -24,11 +27,7 @@ export type StoredFile = {
 export type FileProblem = 'too_large' | 'type_not_allowed' | 'empty';
 
 export type UploadFailure =
-  | { kind: 'refused'; problem: FileProblem }
-  | { kind: 'signed_out' }
-  | { kind: 'connection_lost' }
-  | { kind: 'server' }
-  | { kind: 'rejected' };
+  { kind: 'refused'; problem: FileProblem } | { kind: Exclude<SubmitFailure, 'too_large'> };
 
 export type UploadResult = { ok: true; file: StoredFile } | { ok: false; failure: UploadFailure };
 
@@ -110,18 +109,11 @@ export const PROBLEM_MESSAGE: Record<FileProblem, (limits: Limits) => string> = 
   empty: () => 'That file is empty.',
 };
 
-export const FAILURE_MESSAGE: Record<UploadFailure['kind'], string> = {
-  refused: 'That file was not accepted.',
-  signed_out: 'You were signed out. Sign in again and try the upload once more.',
-  connection_lost: 'Connection lost during the upload. Nothing was attached. Try again.',
-  server: 'Something went wrong on our side. Nothing was attached. Try again in a moment.',
-  rejected: 'The upload could not be finished. Try again.',
-};
-
+// The submit page's wording fits uploads too: nothing was sent, what you have is still here.
 export function failureMessage(failure: UploadFailure, limits: Limits): string {
   return failure.kind === 'refused'
     ? PROBLEM_MESSAGE[failure.problem](limits)
-    : FAILURE_MESSAGE[failure.kind];
+    : SUBMIT_FAILURE[failure.kind];
 }
 
 // PUT the bytes to the presigned URL, reporting 0..1 as they go. Resolves to the status
@@ -148,11 +140,9 @@ export const xhrPut: PutBytes = (url, file, contentType, onProgress) =>
   });
 
 function classify(response: Response): UploadFailure {
-  if (response.status === 413) return { kind: 'refused', problem: 'too_large' };
   if (response.status === 415) return { kind: 'refused', problem: 'type_not_allowed' };
-  if (response.status === 401) return { kind: 'signed_out' };
-  if (response.status >= 500) return { kind: 'server' };
-  return { kind: 'rejected' };
+  const kind = classifyFailure(response);
+  return kind === 'too_large' ? { kind: 'refused', problem: 'too_large' } : { kind };
 }
 
 export async function uploadFile(
@@ -199,10 +189,4 @@ export async function downloadUrl(
   } catch {
     return null;
   }
-}
-
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

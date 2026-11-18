@@ -170,7 +170,7 @@ def _aware(moment: datetime | None) -> datetime | None:
 class ProfileResponse(BaseModel):
     full_name: str
     email: str
-    # SCRUM-83: the uploaded photo and a short-lived download URL for it. Null without one.
+    # The uploaded photo and a short-lived download URL for it. Null without one.
     photo_file_id: int | None
     photo_url: str | None
     timezone: str
@@ -187,7 +187,7 @@ class ProfilePatch(BaseModel):
     """Any subset of the editable fields. Unknown fields, email included, are ignored."""
 
     full_name: str | None = None
-    # SCRUM-83: a complete image the caller uploaded (POST /files), or null to clear the photo.
+    # A complete image the caller uploaded, or null to clear the photo.
     photo_file_id: int | None = None
     timezone: str | None = None
     contact_preference: ContactPreference | None = None
@@ -300,7 +300,6 @@ def update_profile(
     person = user.person
     changes = body.model_dump(exclude_unset=True)
     consent = changes.pop("public_byline_consent", None)
-    # SCRUM-83: the photo must be the caller's own completed image upload.
     if changes.get("photo_file_id") is not None:
         if files.own_photo_candidate(db, person, changes["photo_file_id"]) is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=NOT_A_PHOTO)

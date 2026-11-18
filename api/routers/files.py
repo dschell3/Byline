@@ -1,9 +1,5 @@
 """File storage endpoints (SCRUM-83).
 
-The browser never sends bytes through the API. It asks for an upload URL,
-PUTs the file straight to storage, then confirms. Downloads are the same in
-reverse: a short-lived URL, after the access check in files.py.
-
 | Endpoint | What |
 | --- | --- |
 | ``GET /files/limits`` | Size and type limits, so the form states them before a file is picked. |
@@ -17,7 +13,7 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,14 +22,13 @@ import sessions
 import storage
 from config import get_settings
 from db import get_db
-from models import Membership, StoredFile
+from models import StoredFile
 from sessions import NOT_ALLOWED, CurrentUser, current_user
 from storage import LocalBackend, StorageBackend
 from submit_work import MAX_TEXT_CHARS
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-# The object is not in storage yet, or not at the declared size: upload again.
 UPLOAD_INCOMPLETE = "upload_incomplete"
 
 # Distinct status codes for the two refusals, so the form can say which it was.
@@ -47,6 +42,11 @@ REFUSAL_STATUS = {
 def get_backend() -> StorageBackend:
     """One backend per process. Tests override this dependency with a LocalBackend."""
     return storage.backend_for(get_settings())
+
+
+DbDep = Annotated[Session, Depends(get_db)]
+UserDep = Annotated[CurrentUser, Depends(current_user)]
+BackendDep = Annotated[StorageBackend, Depends(get_backend)]
 
 
 class LimitsOut(BaseModel):
@@ -64,6 +64,8 @@ class UploadIn(BaseModel):
 
 
 class FileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     content_type: str
@@ -72,59 +74,36 @@ class FileOut(BaseModel):
 
 
 class UploadOut(FileOut):
-    # Where the browser PUTs the bytes. Short-lived; not stored.
     upload_url: str
 
 
 class DownloadOut(FileOut):
-    # Where the browser GETs the bytes. Short-lived; not stored.
     download_url: str
 
 
-def _out(stored: StoredFile) -> dict[str, object]:
-    return {
-        "id": stored.id,
-        "name": stored.name,
-        "content_type": stored.content_type,
-        "size_bytes": stored.size_bytes,
-        "status": stored.status,
-    }
-
-
-def _own_pending_or_complete(db: Session, user: CurrentUser, file_id: int) -> StoredFile:
+def _own_upload(db: Session, user: CurrentUser, file_id: int) -> StoredFile:
     """The caller's own upload, or 403 for anyone else and for an id that does not exist."""
     stored = db.get(StoredFile, file_id)
-    uploader = db.get(Membership, stored.uploaded_by_membership_id) if stored else None
-    if stored is None or uploader is None or uploader.person_id != user.person.id:
+    if stored is None or not files.owned_by(db, user.person, stored):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
     return stored
 
 
 @router.get("/limits", response_model=LimitsOut)
 def limits() -> LimitsOut:
-    """What may be uploaded. No session needed; nothing here is secret."""
-    current = storage.limits()
     return LimitsOut(
-        max_upload_mb=current.max_upload_mb,
-        allowed_types=list(current.allowed_types),
-        allowed_extensions=list(current.allowed_extensions),
+        max_upload_mb=storage.MAX_UPLOAD_MB,
+        allowed_types=sorted(storage.ALLOWED_TYPES),
+        allowed_extensions=storage.ALLOWED_EXTENSIONS,
         max_text_chars=MAX_TEXT_CHARS,
     )
 
 
 @router.post("", response_model=UploadOut, status_code=status.HTTP_201_CREATED)
 def begin_upload(
-    body: UploadIn,
-    response: Response,
-    user: Annotated[CurrentUser, Depends(current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    backend: Annotated[StorageBackend, Depends(get_backend)],
+    body: UploadIn, response: Response, user: UserDep, db: DbDep, backend: BackendDep
 ) -> UploadOut:
-    """Refuse over-limit or disallowed files before any bytes move; otherwise hand out the URL.
-
-    413 for too large, 415 for a type not on the list. 403 for a person with
-    no active membership, since every file belongs to an organization.
-    """
+    """413 for too large, 415 for a type not on the list, 403 with no active membership."""
     uploader = files.uploading_membership(db, user.person)
     if uploader is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
@@ -134,81 +113,58 @@ def begin_upload(
         raise HTTPException(REFUSAL_STATUS[refused.code], detail=refused.code) from refused
     db.commit()
     response.headers["Cache-Control"] = "no-store"
-    return UploadOut(
-        id=stored.id,
-        name=stored.name,
-        content_type=stored.content_type,
-        size_bytes=stored.size_bytes,
-        status=stored.status,
-        upload_url=backend.upload_url(stored.key, stored.content_type, stored.size_bytes),
-    )
+    url = backend.upload_url(stored.key, stored.content_type, stored.size_bytes)
+    return UploadOut(**FileOut.model_validate(stored).model_dump(), upload_url=url)
 
 
 @router.post("/{file_id}/complete", response_model=FileOut)
 def complete_upload(
-    file_id: int,
-    response: Response,
-    user: Annotated[CurrentUser, Depends(current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    backend: Annotated[StorageBackend, Depends(get_backend)],
+    file_id: int, response: Response, user: UserDep, db: DbDep, backend: BackendDep
 ) -> FileOut:
-    """Mark the upload complete once the object is in storage at the declared size.
-
-    409 when it is not there yet or the size differs, so the browser uploads
-    again rather than attaching a file that is not really there.
-    """
-    stored = _own_pending_or_complete(db, user, file_id)
+    """409 until the object is there at the declared size, so the browser uploads again."""
+    stored = _own_upload(db, user, file_id)
     if not files.complete_upload(db, backend, stored, sessions.now()):
         raise HTTPException(status.HTTP_409_CONFLICT, detail=UPLOAD_INCOMPLETE)
     db.commit()
     response.headers["Cache-Control"] = "no-store"
-    return FileOut(**_out(stored))
+    return FileOut.model_validate(stored)
 
 
 @router.get("/{file_id}", response_model=DownloadOut)
 def download(
-    file_id: int,
-    response: Response,
-    user: Annotated[CurrentUser, Depends(current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    backend: Annotated[StorageBackend, Depends(get_backend)],
+    file_id: int, response: Response, user: UserDep, db: DbDep, backend: BackendDep
 ) -> DownloadOut:
-    """A download URL for a file the caller may open; 403 otherwise, and for a missing id."""
-    stored = files.visible_file(db, user.person, file_id)
-    if stored is None:
+    stored = db.get(StoredFile, file_id)
+    if stored is None or not files.can_download(db, user.person, stored):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
     if stored.status != "complete":
         raise HTTPException(status.HTTP_409_CONFLICT, detail=UPLOAD_INCOMPLETE)
     response.headers["Cache-Control"] = "no-store"
-    return DownloadOut(**_out(stored), download_url=backend.download_url(stored.key, stored.name))
+    url = backend.download_url(stored.key, stored.name)
+    return DownloadOut(**FileOut.model_validate(stored).model_dump(), download_url=url)
 
 
 # --- Local backend only -----------------------------------------------------
-#
-# R2 takes the PUT and serves the GET itself; these two stand in for it when
-# STORAGE_BACKEND=local. Any other backend answers 404 so they never exist on
-# Render. The presigned-URL idea still holds: PUT needs a pending row of the
-# caller's own with this key, GET needs the same access as /files/{id}.
+# R2 takes the PUT and serves the GET itself. These stand in for it on the
+# local backend and answer 404 on any other. The presigned-URL idea holds:
+# PUT needs a pending row of the caller's own, GET the same access as /files/{id}.
 
 
-def _local(backend: StorageBackend) -> LocalBackend:
+def _local_file(db: Session, backend: StorageBackend, key: str) -> tuple[LocalBackend, StoredFile]:
     if not isinstance(backend, LocalBackend):
         raise HTTPException(status.HTTP_404_NOT_FOUND)
-    return backend
+    stored = db.scalar(select(StoredFile).where(StoredFile.key == key))
+    if stored is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
+    return backend, stored
 
 
 @router.put("/local/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
 async def local_put(
-    key: str,
-    request: Request,
-    user: Annotated[CurrentUser, Depends(current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    backend: Annotated[StorageBackend, Depends(get_backend)],
+    key: str, request: Request, user: UserDep, db: DbDep, backend: BackendDep
 ) -> Response:
-    local = _local(backend)
-    stored = db.scalar(select(StoredFile).where(StoredFile.key == key))
-    uploader = db.get(Membership, stored.uploaded_by_membership_id) if stored else None
-    if stored is None or uploader is None or uploader.person_id != user.person.id:
+    local, stored = _local_file(db, backend, key)
+    if not files.owned_by(db, user.person, stored):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
     body = await request.body()
     if len(body) > storage.MAX_UPLOAD_BYTES:
@@ -218,25 +174,18 @@ async def local_put(
 
 
 @router.get("/local/{key:path}")
-def local_get(
-    key: str,
-    user: Annotated[CurrentUser, Depends(current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    backend: Annotated[StorageBackend, Depends(get_backend)],
-) -> Response:
-    local = _local(backend)
-    stored = db.scalar(select(StoredFile).where(StoredFile.key == key))
-    if stored is None or not files.can_download(db, user.person, stored):
+def local_get(key: str, user: UserDep, db: DbDep, backend: BackendDep) -> Response:
+    local, stored = _local_file(db, backend, key)
+    if not files.can_download(db, user.person, stored):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
     data = local.read(key)
     if data is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
-    safe_name = stored.name.replace('"', "")
     return Response(
         content=data,
         media_type=stored.content_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "Content-Disposition": f'attachment; filename="{stored.name.replace(chr(34), "")}"',
             "Cache-Control": "no-store",
         },
     )

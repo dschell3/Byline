@@ -16,7 +16,6 @@ from models import Assignment, Membership, Person, StoredFile, Submission
 from sessions import NOT_ALLOWED, CurrentUser, current_user
 from submit_work import SubmitWorkRequest
 
-# SCRUM-83: a file id that is not a completed upload of this member's own.
 FILES_NOT_READY = "Attach files that have finished uploading."
 
 router = APIRouter(prefix="/assignments", tags=["submissions"])

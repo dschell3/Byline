@@ -1,17 +1,10 @@
 """Uploaded files: who may store one, who may open one (SCRUM-83).
 
-The rules, in one place so the router stays thin:
-
-- Any active member, supervisor or admin may upload, within the limits in
-  storage.py. The row is ``pending`` until the bucket confirms the object.
-- The uploader may always open their own file. A file attached to a
-  submission (its key is in ``submission.file_keys``) follows the
-  submission's rule, ``work.can_view``: the member who made it, or a
-  supervisor or admin in the same organization. A profile photo
-  (``person.photo_file_id``) is visible to anyone active in that person's
-  organization, since it sits next to their name on every screen.
-- Anyone else gets the same answer as for an id that does not exist, so
-  ids cannot be probed.
+The uploader may always open their own file. A file on a submission
+follows the submission's rule, ``work.can_view``. A profile photo is
+visible to anyone active in that organization, since it sits next to the
+person's name. Everyone else gets the same answer as for an id that does
+not exist.
 """
 
 from datetime import datetime
@@ -28,26 +21,19 @@ MAX_NAME_CHARS = 255
 
 
 class UploadRefusedError(Exception):
-    """The file must not be uploaded. ``code`` is one of storage's error codes."""
-
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
 
 
 def clean_name(name: str) -> str:
-    """The filename as it will be shown and sent back: no path, no control characters."""
+    """No path, no control characters; what is shown and sent back as the download filename."""
     base = PurePosixPath(name.replace("\\", "/")).name.strip()
-    base = "".join(ch for ch in base if ch.isprintable())
-    return base[:MAX_NAME_CHARS] or "file"
+    return "".join(ch for ch in base if ch.isprintable())[:MAX_NAME_CHARS] or "file"
 
 
 def uploading_membership(db: Session, caller: Person) -> Membership | None:
-    """The membership an upload is filed under: an active member one, else any active one.
-
-    Same choice as the home screen (routers/me.py), so a person in two
-    organizations uploads into the one where they are an intern.
-    """
+    """An active member membership first, else any active one: the same pick as the home screen."""
     rows = db.scalars(
         select(Membership)
         .where(Membership.person_id == caller.id, Membership.is_active.is_(True))
@@ -59,7 +45,6 @@ def uploading_membership(db: Session, caller: Person) -> Membership | None:
 def begin_upload(
     db: Session, uploader: Membership, name: str, content_type: str, size_bytes: int
 ) -> StoredFile:
-    """Check the limits and write the pending row. The caller gets the upload URL from storage."""
     name = clean_name(name)
     code = check_upload(name, content_type, size_bytes)
     if code is not None:
@@ -81,15 +66,10 @@ def begin_upload(
 def complete_upload(
     db: Session, backend: StorageBackend, stored: StoredFile, now: datetime
 ) -> bool:
-    """Mark the row complete once the object is in the bucket at the declared size.
-
-    False when the object is missing or a different size: the row stays
-    pending and the browser is told to upload again.
-    """
+    """Mark the row complete once the object is there at the declared size; False until then."""
     if stored.status == "complete":
         return True
-    actual = backend.size_of(stored.key)
-    if actual is None or actual != stored.size_bytes:
+    if backend.size_of(stored.key) != stored.size_bytes:
         return False
     stored.status = "complete"
     stored.completed_at = now
@@ -97,59 +77,40 @@ def complete_upload(
     return True
 
 
-def submission_holding(db: Session, stored: StoredFile) -> Submission | None:
-    """The submission this file is attached to, if any."""
-    return db.scalar(
+def owned_by(db: Session, caller: Person, stored: StoredFile) -> bool:
+    uploader = db.get(Membership, stored.uploaded_by_membership_id)
+    return uploader is not None and uploader.person_id == caller.id
+
+
+def can_download(db: Session, caller: Person, stored: StoredFile) -> bool:
+    if owned_by(db, caller, stored):
+        return True
+    submission = db.scalar(
         select(Submission)
         .where(literal(stored.key) == Submission.file_keys.any_())
         .order_by(Submission.id)
     )
-
-
-def _active_membership(db: Session, caller: Person, organization_id: int) -> Membership | None:
-    return db.scalar(
-        select(Membership).where(
-            Membership.person_id == caller.id,
-            Membership.organization_id == organization_id,
-            Membership.is_active.is_(True),
-        )
-    )
-
-
-def can_download(db: Session, caller: Person, stored: StoredFile) -> bool:
-    """Whether ``caller`` may have a download URL for this file. See the module docstring."""
-    uploader = db.get(Membership, stored.uploaded_by_membership_id)
-    if uploader is not None and uploader.person_id == caller.id:
-        return True
-
-    submission = submission_holding(db, stored)
     if submission is not None:
         owner = db.get(Membership, submission.membership_id)
         return owner is not None and work.can_view(db, caller, owner)
-
-    is_photo = db.scalar(select(Person.id).where(Person.photo_file_id == stored.id)) is not None
-    if is_photo:
-        return _active_membership(db, caller, stored.organization_id) is not None
-
+    if db.scalar(select(Person.id).where(Person.photo_file_id == stored.id)) is not None:
+        same_org = select(Membership.id).where(
+            Membership.person_id == caller.id,
+            Membership.organization_id == stored.organization_id,
+            Membership.is_active.is_(True),
+        )
+        return db.scalar(same_org) is not None
     return False
 
 
 def own_photo_candidate(db: Session, caller: Person, file_id: int) -> StoredFile | None:
-    """A complete image the caller uploaded, or None: what PATCH /me/profile may set."""
+    """A complete image the caller uploaded: what PATCH /me/profile may set as the photo."""
     stored = db.get(StoredFile, file_id)
-    if stored is None or stored.status != "complete":
-        return None
-    if not stored.content_type.startswith("image/"):
-        return None
-    uploader = db.get(Membership, stored.uploaded_by_membership_id)
-    if uploader is None or uploader.person_id != caller.id:
-        return None
-    return stored
-
-
-def visible_file(db: Session, caller: Person, file_id: int) -> StoredFile | None:
-    """The file, or None for a stranger and for an id that does not exist alike."""
-    stored = db.get(StoredFile, file_id)
-    if stored is None or not can_download(db, caller, stored):
+    if (
+        stored is None
+        or stored.status != "complete"
+        or not stored.content_type.startswith("image/")
+        or not owned_by(db, caller, stored)
+    ):
         return None
     return stored

@@ -33,7 +33,7 @@ ACTOR_TYPES = "actor_type IN ('person', 'system')"
 LATE_POLICIES = "late_policy IN ('not_accepted', 'accepted_full_points', 'accepted_half_points')"
 # What a review can say (SCRUM-22). work.py groups My Work by these two spellings.
 DECISIONS = "decision IN ('approved', 'changes_requested')"
-# How an assignment asks to be handed in (SCRUM-83). submit_work.py validates each kind.
+# How an assignment asks to be handed in. submit_work.py validates each kind.
 SUBMISSION_KINDS = "submission_kind IN ('text', 'link', 'pr', 'file')"
 
 
@@ -75,9 +75,7 @@ class Person(Base):
     email_bounced_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     # Stamped when the person clicks a verification link (SCRUM-12). Null means unconfirmed.
     email_verified_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
-    # Profile photo (SCRUM-17, uploaded under SCRUM-83). use_alter because stored_file
-    # points back at person through membership, so one of the two keys is added after
-    # both tables exist.
+    # use_alter: stored_file reaches person through membership, so this key is added last.
     photo_file_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("stored_file.id", use_alter=True, name="fk_person_photo_file")
     )
@@ -207,8 +205,7 @@ class Assignment(Base):
     late_policy: Mapped[str] = mapped_column(Text, nullable=False)
     # How many hours after the due date late work is still taken. None means no cutoff.
     late_cutoff_hours: Mapped[int | None] = mapped_column(Integer)
-    # SCRUM-83: how the supervisor wants it handed in. The submit form opens on this
-    # kind; None leaves the choice to the member.
+    # The kind the submit form opens on; None leaves the choice to the member.
     submission_kind: Mapped[str | None] = mapped_column(Text)
     due_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     created_at: Mapped[datetime] = mapped_column(
@@ -270,12 +267,9 @@ class Submission(Base):
 
 
 class StoredFile(Base):
-    """One uploaded object in file storage (SCRUM-83).
+    """One uploaded object (SCRUM-83): ``pending`` until the bucket confirms it.
 
-    The row is written before the bytes leave the browser, as ``pending``,
-    and becomes ``complete`` once the object is confirmed in the bucket.
-    A submission refers to its files by ``key`` (submission.file_keys); a
-    profile photo by id (person.photo_file_id).
+    A submission names its files by ``key``; a profile photo by id.
     """
 
     __tablename__ = "stored_file"
@@ -291,12 +285,10 @@ class StoredFile(Base):
     uploaded_by_membership_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("membership.id"), nullable=False
     )
-    # The object key in the bucket. Random, never derived from the name.
     key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    # The name the person chose, shown on screen and sent as the download filename.
     name: Mapped[str] = mapped_column(Text, nullable=False)
     content_type: Mapped[str] = mapped_column(Text, nullable=False)
-    # What the browser declared. Checked against the object once the upload completes.
+    # As declared by the browser; checked against the object when the upload completes.
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     created_at: Mapped[datetime] = mapped_column(

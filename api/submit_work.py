@@ -15,7 +15,7 @@ SubmissionKind = Literal["text", "link", "pr", "file"]
 
 MAX_TEXT_CHARS = 20_000
 MAX_URL_CHARS = 2_048
-# Files on one submission (SCRUM-83). Enough for a brief and its sources.
+# Files on one submission. Enough for a brief and its sources.
 MAX_FILES = 10
 
 GITHUB_PULL_PATH = re.compile(r"/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[1-9][0-9]*/?")
@@ -69,7 +69,7 @@ class SubmitWorkRequest(BaseModel):
     kind: SubmissionKind
     # Required for text, link and pr. For file it is an optional note.
     content: str = Field(default="", max_length=MAX_TEXT_CHARS)
-    # SCRUM-83: for kind "file" only, one to MAX_FILES completed uploads of the member's own.
+    # For kind "file" only: completed uploads of the member's own.
     file_ids: list[int] = Field(default_factory=list, max_length=MAX_FILES)
 
     @model_validator(mode="after")
