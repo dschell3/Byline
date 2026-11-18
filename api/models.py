@@ -75,10 +75,9 @@ class Person(Base):
     email_bounced_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     # Stamped when the person clicks a verification link (SCRUM-12). Null means unconfirmed.
     email_verified_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
-    # Profile (SCRUM-17). The photo is a URL until file storage (R2) arrives.
-    photo_url: Mapped[str | None] = mapped_column(Text)
-    # SCRUM-83: the uploaded photo. use_alter because stored_file points back at person
-    # through membership, and Postgres needs one of the two keys added after both tables.
+    # Profile photo (SCRUM-17, uploaded under SCRUM-83). use_alter because stored_file
+    # points back at person through membership, so one of the two keys is added after
+    # both tables exist.
     photo_file_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("stored_file.id", use_alter=True, name="fk_person_photo_file")
     )

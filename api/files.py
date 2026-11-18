@@ -134,6 +134,19 @@ def can_download(db: Session, caller: Person, stored: StoredFile) -> bool:
     return False
 
 
+def own_photo_candidate(db: Session, caller: Person, file_id: int) -> StoredFile | None:
+    """A complete image the caller uploaded, or None: what PATCH /me/profile may set."""
+    stored = db.get(StoredFile, file_id)
+    if stored is None or stored.status != "complete":
+        return None
+    if not stored.content_type.startswith("image/"):
+        return None
+    uploader = db.get(Membership, stored.uploaded_by_membership_id)
+    if uploader is None or uploader.person_id != caller.id:
+        return None
+    return stored
+
+
 def visible_file(db: Session, caller: Person, file_id: int) -> StoredFile | None:
     """The file, or None for a stranger and for an id that does not exist alike."""
     stored = db.get(StoredFile, file_id)

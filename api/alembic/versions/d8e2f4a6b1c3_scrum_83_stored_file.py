@@ -16,7 +16,9 @@ plug into, and the two columns that point at it:
   assignments leave the choice to the member.
 - person.photo_file_id: the profile photo (P18), deferred since SCRUM-17.
   Added as a separate constraint because stored_file reaches person through
-  membership, so the two tables must both exist first.
+  membership, so the two tables must both exist first. It replaces
+  person.photo_url, the pasted-link stopgap from SCRUM-17, which is dropped
+  here: nothing on staging had set one.
 
 Follows SCRUM-18's 9c1f4a7e2b53 (CONTRIBUTING, Migrations).
 """
@@ -64,10 +66,12 @@ def upgrade() -> None:
     )
     op.add_column('person', sa.Column('photo_file_id', sa.BigInteger(), nullable=True))
     op.create_foreign_key('fk_person_photo_file', 'person', 'stored_file', ['photo_file_id'], ['id'])
+    op.drop_column('person', 'photo_url')
 
 
 def downgrade() -> None:
-    """Drop them again, references first."""
+    """Drop them again, references first, and bring the link column back."""
+    op.add_column('person', sa.Column('photo_url', sa.Text(), nullable=True))
     op.drop_constraint('fk_person_photo_file', 'person', type_='foreignkey')
     op.drop_column('person', 'photo_file_id')
     op.drop_constraint('ck_assignment_submission_kind', 'assignment', type_='check')

@@ -152,7 +152,6 @@ erDiagram
         boolean email_unreachable "NOT NULL, default false"
         timestamptz email_bounced_at "nullable"
         timestamptz email_verified_at "nullable, set by a verification link"
-        text photo_url "nullable, https URL until R2 upload"
         bigint photo_file_id FK "nullable, stored_file (SCRUM-83)"
         text contact_preference "NOT NULL: email | discord | phone, default email"
         text contact_detail "nullable, handle or number"
