@@ -19,11 +19,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import assignments
+import files
 import sessions
 import work
 from db import get_db
-from models import Cohort, Membership, Organization, Person, Track
+from models import Cohort, Membership, Organization, Person, StoredFile, Track
+from routers.files import get_backend
 from sessions import CurrentUser, current_user
+from storage import StorageBackend
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -167,6 +170,8 @@ def _aware(moment: datetime | None) -> datetime | None:
 class ProfileResponse(BaseModel):
     full_name: str
     email: str
+    # The uploaded photo and a short-lived download URL for it. Null without one.
+    photo_file_id: int | None
     photo_url: str | None
     timezone: str
     contact_preference: str
@@ -182,7 +187,8 @@ class ProfilePatch(BaseModel):
     """Any subset of the editable fields. Unknown fields, email included, are ignored."""
 
     full_name: str | None = None
-    photo_url: str | None = None
+    # A complete image the caller uploaded, or null to clear the photo.
+    photo_file_id: int | None = None
     timezone: str | None = None
     contact_preference: ContactPreference | None = None
     contact_detail: str | None = None
@@ -199,21 +205,6 @@ class ProfilePatch(BaseModel):
         value = value.strip()
         if not 1 <= len(value) <= 200:
             raise ValueError("Name must be 1 to 200 characters.")
-        return value
-
-    @field_validator("photo_url")
-    @classmethod
-    def check_photo_url(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        value = value.strip()
-        if (
-            not value.lower().startswith("https://")
-            or len(value) == len("https://")
-            or len(value) > 2048
-            or any(char.isspace() for char in value)
-        ):
-            raise ValueError("Photo must be an https:// link of at most 2048 characters.")
         return value
 
     @field_validator("timezone")
@@ -243,11 +234,26 @@ class ProfilePatch(BaseModel):
         return self
 
 
-def _profile(person: Person, member: Membership) -> ProfileResponse:
+NOT_A_PHOTO = "Choose an image you uploaded."
+
+
+def _photo_url(db: Session, backend: StorageBackend, person: Person) -> str | None:
+    if person.photo_file_id is None:
+        return None
+    stored = db.get(StoredFile, person.photo_file_id)
+    if stored is None or stored.status != "complete":
+        return None
+    return backend.download_url(stored.key, stored.name)
+
+
+def _profile(
+    db: Session, backend: StorageBackend, person: Person, member: Membership
+) -> ProfileResponse:
     return ProfileResponse(
         full_name=person.full_name,
         email=person.email,
-        photo_url=person.photo_url,
+        photo_file_id=person.photo_file_id,
+        photo_url=_photo_url(db, backend, person),
         timezone=person.timezone,
         contact_preference=person.contact_preference,
         contact_detail=person.contact_detail,
@@ -264,13 +270,14 @@ def profile(
     response: Response,
     user: CurrentUser = Depends(current_user),
     db: Session = Depends(get_db),
+    backend: StorageBackend = Depends(get_backend),
 ) -> ProfileResponse:
     """Everything P18 shows. 404 when the person has no active membership."""
     member = _home_membership(db, user.person.id)
     if member is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NO_MEMBERSHIP)
     response.headers["Cache-Control"] = "no-store"
-    return _profile(user.person, member)
+    return _profile(db, backend, user.person, member)
 
 
 @router.patch("/profile", response_model=ProfileResponse)
@@ -279,6 +286,7 @@ def update_profile(
     response: Response,
     user: CurrentUser = Depends(current_user),
     db: Session = Depends(get_db),
+    backend: StorageBackend = Depends(get_backend),
 ) -> ProfileResponse:
     """Change any subset of the editable fields; returns the full profile afterwards.
 
@@ -292,6 +300,9 @@ def update_profile(
     person = user.person
     changes = body.model_dump(exclude_unset=True)
     consent = changes.pop("public_byline_consent", None)
+    if changes.get("photo_file_id") is not None:
+        if files.own_photo_candidate(db, person, changes["photo_file_id"]) is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=NOT_A_PHOTO)
     for field, value in changes.items():
         setattr(person, field, value)
     if consent is True and not member.public_byline_consent:
@@ -302,4 +313,4 @@ def update_profile(
     db.commit()
 
     response.headers["Cache-Control"] = "no-store"
-    return _profile(person, member)
+    return _profile(db, backend, person, member)

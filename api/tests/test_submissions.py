@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 import ratelimit
 from db import as_psycopg_url, get_db
 from main import app
-from models import Membership, Organization, Person, Review, Team
+from models import Membership, Organization, Person, Review, StoredFile, Submission, Team
 from scripts import seed_submission as seeding
 from scripts.seed_submission import Seeded
 from security import hash_password
@@ -121,6 +121,38 @@ def test_the_member_sees_every_version_oldest_first(client: TestClient, seeded: 
     assert [v["version"] for v in body["versions"]] == [1, 2]
     assert [v["id"] for v in body["versions"]] == [seeded.version1_id, seeded.version2_id]
     assert [v["status"] for v in body["versions"]] == ["changes_requested", "submitted"]
+
+
+def test_files_on_a_version_come_with_their_ids(
+    client: TestClient, db: Session, seeded: Seeded
+) -> None:
+    """SCRUM-83: P14 links each file by stored_file id; a key with no row is left out."""
+    version = db.get(Submission, seeded.version1_id)
+    assert version is not None and version.file_keys
+    row = StoredFile(
+        organization_id=seeded.organization_id,
+        uploaded_by_membership_id=seeded.member_membership_id,
+        key=version.file_keys[0],
+        name="volunteer-dashboard-v1.pdf",
+        content_type="application/pdf",
+        size_bytes=4321,
+        status="complete",
+    )
+    db.add(row)
+    db.flush()
+
+    sign_in(client, MEMBER)
+    versions = client.get(f"/submissions/{seeded.version1_id}").json()["versions"]
+    assert versions[0]["files"] == [
+        {
+            "id": row.id,
+            "name": "volunteer-dashboard-v1.pdf",
+            "content_type": "application/pdf",
+            "size_bytes": 4321,
+        }
+    ]
+    # Version 2's key has no stored_file row, so it lists none.
+    assert versions[1]["file_keys"] and versions[1]["files"] == []
 
 
 def test_asking_for_version_one_gives_the_same_history(client: TestClient, seeded: Seeded) -> None:

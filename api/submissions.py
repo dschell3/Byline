@@ -25,6 +25,7 @@ from models import (
     Person,
     Review,
     ReviewCriterionScore,
+    StoredFile,
     Submission,
     SubmissionComment,
 )
@@ -62,12 +63,23 @@ class CommentOut(BaseModel):
     created_at: datetime
 
 
+class FileOut(BaseModel):
+    """A file on a version. The id is what GET /files/{id} takes."""
+
+    id: int
+    name: str
+    content_type: str
+    size_bytes: int
+
+
 class VersionOut(BaseModel):
     id: int
     version: int
     status: str
     submitted_at: datetime
     file_keys: list[str]
+    # The rows behind file_keys, in order. A key with no row (older seed data) is left out.
+    files: list[FileOut]
     submission_kind: str | None
     content: str | None
     reviews: list[ReviewOut]
@@ -156,6 +168,19 @@ def _reviews(db: Session, submission_id: int, include_drafts: bool) -> list[Revi
     ]
 
 
+def _files(db: Session, keys: list[str]) -> list[FileOut]:
+    if not keys:
+        return []
+    by_key = {
+        row.key: row for row in db.scalars(select(StoredFile).where(StoredFile.key.in_(keys)))
+    }
+    return [
+        FileOut(id=row.id, name=row.name, content_type=row.content_type, size_bytes=row.size_bytes)
+        for key in keys
+        if (row := by_key.get(key)) is not None
+    ]
+
+
 def _comments(db: Session, submission_id: int) -> list[CommentOut]:
     rows = db.execute(
         select(SubmissionComment, Person.full_name)
@@ -212,6 +237,7 @@ def history(db: Session, submission: Submission, viewer_is_owner: bool) -> Submi
                 status=version.status,
                 submitted_at=version.submitted_at,
                 file_keys=list(version.file_keys or []),
+                files=_files(db, list(version.file_keys or [])),
                 submission_kind=version.submission_kind,
                 content=version.content,
                 reviews=_reviews(db, version.id, include_drafts=not viewer_is_owner),

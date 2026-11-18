@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { FileLink } from '../components/FileLink';
 import { ReviewCard } from '../components/ReviewCard';
 import { When } from '../components/When';
 import { fetchHome } from '../lib/home';
@@ -10,7 +11,7 @@ import { formatInstant, viewerTimeZone } from '../lib/time';
 import {
   badgeStatus,
   fetchSubmission,
-  fileName,
+  fileRows,
   postComment,
   threads,
   versionLabel,
@@ -193,10 +194,16 @@ function VersionSection({
 
       {version.file_keys.length > 0 && (
         <ul className="m-0 mt-4 flex list-none flex-col gap-1 p-0">
-          {version.file_keys.map((key) => (
-            <li key={key} className="text-body text-ink-body">
-              {fileName(key)}
-              <span className="text-meta text-ink-meta"> · download arrives with file storage</span>
+          {fileRows(version).map((row) => (
+            <li key={row.kind === 'link' ? row.id : row.name} className="text-body text-ink-body">
+              {row.kind === 'link' ? (
+                <FileLink fileId={row.id} name={row.name} sizeBytes={row.size_bytes} />
+              ) : (
+                <>
+                  {row.name}
+                  <span className="text-meta text-ink-meta"> · not available to download</span>
+                </>
+              )}
             </li>
           ))}
         </ul>

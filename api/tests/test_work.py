@@ -114,7 +114,13 @@ def test_an_item_carries_what_the_row_shows() -> None:
         "late_policy": "accepted_full_points",
         "late_cutoff_hours": None,
         "handed_in_late": False,
+        "submission_kind": None,
     }
+
+
+def test_an_item_carries_the_kind_the_submit_form_opens_on() -> None:
+    wants_a_file = Row(1, "Brief", "Marguerite Ellis", NOW, 10, True, None, submission_kind="file")
+    assert group_rows([wants_a_file], NOW).groups[0].items[0].submission_kind == "file"
 
 
 def test_an_item_carries_its_late_policy_so_the_page_can_describe_it() -> None:

@@ -26,6 +26,16 @@ describe('createSubmission', () => {
     });
   });
 
+  test('a file submission carries the ids and the note (SCRUM-83)', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response('{}', { status: 201 }));
+    await createSubmission(7, 'file', 'Two drafts.', [3, 1]);
+    expect(apiFetch).toHaveBeenCalledWith('/assignments/7/submissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'file', content: 'Two drafts.', file_ids: [3, 1] }),
+    });
+  });
+
   test('returns a failed response so the page can preserve its draft', async () => {
     const failure = new Response(null, { status: 409 });
     vi.mocked(apiFetch).mockResolvedValue(failure);

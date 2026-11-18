@@ -58,6 +58,8 @@ class WorkItem(BaseModel):
     # True when the first hand-in came after the due date. A resubmission the
     # reviewer asked for after the deadline does not make it late.
     handed_in_late: bool
+    # SCRUM-83: the kind the submit form opens on, or None to leave the choice to the member.
+    submission_kind: str | None
 
 
 class WorkGroup(BaseModel):
@@ -85,6 +87,7 @@ class Row:
     late_policy: str = ACCEPTED_FULL_POINTS
     late_cutoff_hours: int | None = None
     handed_in_late: bool = False
+    submission_kind: str | None = None
 
 
 def _aware(moment: datetime) -> datetime:
@@ -128,6 +131,7 @@ def group_rows(rows: list[Row], at: datetime) -> WorkResponse:
                 late_policy=row.late_policy,
                 late_cutoff_hours=row.late_cutoff_hours,
                 handed_in_late=row.handed_in_late,
+                submission_kind=row.submission_kind,
             )
         )
     return WorkResponse(
@@ -179,6 +183,7 @@ def load_rows(db: Session, member: Membership) -> list[Row]:
                 late_cutoff_hours=assignment.late_cutoff_hours,
                 handed_in_late=first_handed_in_at is not None
                 and was_handed_in_late(assignment, first_handed_in_at),
+                submission_kind=assignment.submission_kind,
             )
         )
     return rows

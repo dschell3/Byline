@@ -27,6 +27,7 @@ EXPECTED_TABLES = {
     "assessment_criterion",
     "review_criterion_score",
     "submission_comment",
+    "stored_file",
 }
 
 

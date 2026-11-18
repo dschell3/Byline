@@ -22,6 +22,7 @@ function version(id: number, number: number, reviews: Review[] = []): Version {
     status: 'changes_requested',
     submitted_at: '2026-11-04T10:00:00Z',
     file_keys: [],
+    files: [],
     submission_kind: 'text',
     content: 'work',
     reviews,

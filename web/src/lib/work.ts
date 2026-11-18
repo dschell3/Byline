@@ -17,6 +17,8 @@ export type WorkItem = {
   late_cutoff_hours: number | null;
   // The first hand-in came after the due date. Decided on the server, in UTC.
   handed_in_late: boolean;
+  // SCRUM-83: the kind the submit form opens on, or null to leave the choice to the member.
+  submission_kind: 'text' | 'link' | 'pr' | 'file' | null;
 };
 
 export type WorkGroup = { key: Status; label: string; items: WorkItem[] };

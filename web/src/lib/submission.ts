@@ -31,13 +31,18 @@ export type Comment = {
   created_at: string;
 };
 
+// SCRUM-83: a file on a version, by the id GET /files/{id} takes.
+export type VersionFile = { id: number; name: string; content_type: string; size_bytes: number };
+
 export type Version = {
   id: number;
   version: number;
   status: string;
   submitted_at: string;
   file_keys: string[];
-  submission_kind: 'text' | 'link' | 'pr' | null;
+  // The stored_file rows behind file_keys. A key from before file storage has no row.
+  files: VersionFile[];
+  submission_kind: 'text' | 'link' | 'pr' | 'file' | null;
   content: string | null;
   reviews: Review[];
   comments: Comment[];
@@ -127,4 +132,23 @@ export function scoreTotal(scores: Score[]): string {
 // The last part of an object key, which is the file's name once storage lands (SCRUM-19).
 export function fileName(key: string): string {
   return key.split('/').pop() || key;
+}
+
+// What P14 lists for a version: a link for every file with a row, a bare name for the rest.
+export type FileRow =
+  { kind: 'link'; id: number; name: string; size_bytes: number } | { kind: 'name'; name: string };
+
+export function fileRows(version: Pick<Version, 'file_keys' | 'files'>): FileRow[] {
+  const linked: FileRow[] = version.files.map((file) => ({
+    kind: 'link',
+    id: file.id,
+    name: file.name,
+    size_bytes: file.size_bytes,
+  }));
+  // Keys without a row (seed data from before SCRUM-83) still show their name.
+  const leftover = Math.max(version.file_keys.length - version.files.length, 0);
+  const bare: FileRow[] = version.file_keys
+    .slice(version.file_keys.length - leftover)
+    .map((key) => ({ kind: 'name', name: fileName(key) }));
+  return [...linked, ...bare];
 }

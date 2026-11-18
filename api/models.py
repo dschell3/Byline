@@ -33,6 +33,8 @@ ACTOR_TYPES = "actor_type IN ('person', 'system')"
 LATE_POLICIES = "late_policy IN ('not_accepted', 'accepted_full_points', 'accepted_half_points')"
 # What a review can say (SCRUM-22). work.py groups My Work by these two spellings.
 DECISIONS = "decision IN ('approved', 'changes_requested')"
+# How an assignment asks to be handed in. submit_work.py validates each kind.
+SUBMISSION_KINDS = "submission_kind IN ('text', 'link', 'pr', 'file')"
 
 
 class Organization(Base):
@@ -73,8 +75,10 @@ class Person(Base):
     email_bounced_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     # Stamped when the person clicks a verification link (SCRUM-12). Null means unconfirmed.
     email_verified_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
-    # Profile (SCRUM-17). The photo is a URL until file storage (R2) arrives.
-    photo_url: Mapped[str | None] = mapped_column(Text)
+    # use_alter: stored_file reaches person through membership, so this key is added last.
+    photo_file_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("stored_file.id", use_alter=True, name="fk_person_photo_file")
+    )
     contact_preference: Mapped[str] = mapped_column(Text, nullable=False, server_default="email")
     contact_detail: Mapped[str | None] = mapped_column(Text)
     email_assignments: Mapped[bool] = mapped_column(
@@ -174,6 +178,7 @@ class Assignment(Base):
     __table_args__ = (
         CheckConstraint(LATE_POLICIES, name="ck_assignment_late_policy"),
         CheckConstraint("late_cutoff_hours > 0", name="ck_assignment_late_cutoff_hours"),
+        CheckConstraint(SUBMISSION_KINDS, name="ck_assignment_submission_kind"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -200,6 +205,8 @@ class Assignment(Base):
     late_policy: Mapped[str] = mapped_column(Text, nullable=False)
     # How many hours after the due date late work is still taken. None means no cutoff.
     late_cutoff_hours: Mapped[int | None] = mapped_column(Integer)
+    # The kind the submit form opens on; None leaves the choice to the member.
+    submission_kind: Mapped[str | None] = mapped_column(Text)
     due_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
@@ -257,6 +264,37 @@ class Submission(Base):
     submitted_at: Mapped[datetime] = mapped_column(
         TIMESTAMPTZ, nullable=False, server_default=func.now()
     )
+
+
+class StoredFile(Base):
+    """One uploaded object (SCRUM-83): ``pending`` until the bucket confirms it.
+
+    A submission names its files by ``key``; a profile photo by id.
+    """
+
+    __tablename__ = "stored_file"
+    __table_args__ = (
+        CheckConstraint("status IN ('pending', 'complete')", name="ck_stored_file_status"),
+        CheckConstraint("size_bytes >= 0", name="ck_stored_file_size_bytes"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("organization.id"), nullable=False
+    )
+    uploaded_by_membership_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("membership.id"), nullable=False
+    )
+    key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    content_type: Mapped[str] = mapped_column(Text, nullable=False)
+    # As declared by the browser; checked against the object when the upload completes.
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMPTZ, nullable=False, server_default=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ)
 
 
 class Review(Base):
