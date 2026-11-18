@@ -13,6 +13,7 @@ import {
 const SAVED: Profile = {
   full_name: 'Amara Okafor',
   email: 'amara@example.com',
+  photo_file_id: null,
   photo_url: null,
   timezone: 'Africa/Lagos',
   contact_preference: 'email',
@@ -74,10 +75,10 @@ describe('invalidFields', () => {
     const body = {
       detail: [
         { loc: ['body', 'timezone'], msg: 'Value error, Unknown timezone.' },
-        { loc: ['body', 'photo_url'], msg: 'Value error' },
+        { loc: ['body', 'photo_file_id'], msg: 'Value error' },
       ],
     };
-    expect(invalidFields(body)).toEqual(['timezone', 'photo_url']);
+    expect(invalidFields(body)).toEqual(['timezone', 'photo_file_id']);
   });
 
   test('is empty when the body is not the usual list', () => {
@@ -100,10 +101,21 @@ describe('buildPatch', () => {
     });
   });
 
-  test('blank photo and detail clear to null', () => {
-    const saved = { ...SAVED, photo_url: 'https://example.com/a.png', contact_detail: 'amara_o' };
-    const form = { ...toForm(saved), photo_url: '  ', contact_detail: '' };
-    expect(buildPatch(saved, form)).toEqual({ photo_url: null, contact_detail: null });
+  test('a removed photo and a blank detail clear to null', () => {
+    const saved = {
+      ...SAVED,
+      photo_file_id: 10,
+      photo_url: '/api/files/local/org-1/photo.png',
+      contact_detail: 'amara_o',
+    };
+    const form = { ...toForm(saved), photo_file_id: null, contact_detail: '' };
+    expect(buildPatch(saved, form)).toEqual({ photo_file_id: null, contact_detail: null });
+  });
+
+  test('a newly chosen photo sends its id (SCRUM-83)', () => {
+    expect(buildPatch(SAVED, { ...toForm(SAVED), photo_file_id: 42 })).toEqual({
+      photo_file_id: 42,
+    });
   });
 
   test('carries the switches and the contact choice', () => {
@@ -124,7 +136,7 @@ describe('buildPatch', () => {
 describe('toForm', () => {
   test('missing text shows as an empty field', () => {
     const form = toForm(SAVED);
-    expect(form.photo_url).toBe('');
+    expect(form.photo_file_id).toBeNull();
     expect(form.contact_detail).toBe('');
   });
 });

@@ -7,6 +7,8 @@ export type ContactPreference = 'email' | 'discord' | 'phone';
 export type Profile = {
   full_name: string;
   email: string;
+  // SCRUM-83: the uploaded photo, and a short-lived download URL for it. Both null without one.
+  photo_file_id: number | null;
   photo_url: string | null;
   timezone: string;
   contact_preference: ContactPreference;
@@ -19,12 +21,15 @@ export type Profile = {
 };
 
 // The fields the person can change. Email is read-only here; the consent stamp is the API's.
-export type ProfilePatch = Partial<Omit<Profile, 'email' | 'public_byline_consent_at'>>;
+export type ProfilePatch = Partial<
+  Omit<Profile, 'email' | 'public_byline_consent_at' | 'photo_url'>
+>;
 
 // What the form holds while it is being edited: text fields are always strings.
 export type ProfileForm = {
   full_name: string;
-  photo_url: string;
+  // The id of a finished image upload, or null for no photo (SCRUM-83).
+  photo_file_id: number | null;
   timezone: string;
   contact_preference: ContactPreference;
   contact_detail: string;
@@ -69,7 +74,7 @@ export async function saveProfile(patch: ProfilePatch): Promise<SaveResult> {
 export function toForm(profile: Profile): ProfileForm {
   return {
     full_name: profile.full_name,
-    photo_url: profile.photo_url ?? '',
+    photo_file_id: profile.photo_file_id,
     timezone: profile.timezone,
     contact_preference: profile.contact_preference,
     contact_detail: profile.contact_detail ?? '',
@@ -88,13 +93,12 @@ const FLAGS = [
 ] as const;
 
 // The difference between what is saved and what the form now says. Empty means nothing to send.
-// Blank text becomes null so a cleared photo or detail is cleared on the server too.
+// Blank detail becomes null so a cleared detail is cleared on the server too; a removed photo is null.
 export function buildPatch(saved: Profile, form: ProfileForm): ProfilePatch {
   const patch: ProfilePatch = {};
   const name = form.full_name.trim();
   if (name !== saved.full_name) patch.full_name = name;
-  const photo = form.photo_url.trim() || null;
-  if (photo !== saved.photo_url) patch.photo_url = photo;
+  if (form.photo_file_id !== saved.photo_file_id) patch.photo_file_id = form.photo_file_id;
   const zone = form.timezone.trim();
   if (zone !== saved.timezone) patch.timezone = zone;
   if (form.contact_preference !== saved.contact_preference) {
@@ -150,7 +154,7 @@ export function timeZoneOptions(list: () => string[] = browserZones): string[] {
 // What each refused field is told. The API names the field; the wording is ours.
 export const FIELD_ERRORS: Record<string, string> = {
   full_name: 'Enter a name of 1 to 200 characters.',
-  photo_url: 'Use a link that starts with https://.',
+  photo_file_id: 'Choose a photo you uploaded here.',
   timezone: 'Choose a timezone from the list.',
   contact_preference: 'Choose email, Discord or phone.',
   contact_detail: 'Keep this to 200 characters or fewer.',
