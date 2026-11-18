@@ -2,11 +2,13 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   FALLBACK_LIMITS,
   checkFile,
+  describeLimits,
   downloadUrl,
   extensionOf,
   failureMessage,
   fetchLimits,
   formatSize,
+  imageLimits,
   uploadFile,
   type Limits,
   type PutBytes,
@@ -210,5 +212,26 @@ describe('formatSize', () => {
     [3.5 * 1024 * 1024, '3.5 MB'],
   ])('%d → %s', (bytes, text) => {
     expect(formatSize(bytes)).toBe(text);
+  });
+});
+
+describe('imageLimits and describeLimits', () => {
+  test('keeps only the image types and extensions', () => {
+    const narrowed = imageLimits({
+      ...LIMITS,
+      allowed_types: ['application/pdf', 'image/png', 'image/jpeg'],
+      allowed_extensions: ['.pdf', '.png', '.jpg', '.jpeg'],
+    });
+    expect(narrowed.allowed_types).toEqual(['image/png', 'image/jpeg']);
+    expect(narrowed.allowed_extensions).toEqual(['.png', '.jpg', '.jpeg']);
+    expect(narrowed.max_upload_mb).toBe(25);
+  });
+
+  test('says size, count and the accepted extensions', () => {
+    expect(describeLimits(LIMITS, 10)).toBe(
+      'Up to 25 MB each, up to 10 files. Accepted: .pdf, .png.',
+    );
+    expect(describeLimits(LIMITS, 1)).toBe('Up to 25 MB each, one file. Accepted: .pdf, .png.');
+    expect(describeLimits(FALLBACK_LIMITS, 3)).toBe('Up to 25 MB each, up to 3 files.');
   });
 });

@@ -59,6 +59,26 @@ export async function fetchLimits(fetcher: typeof apiFetch = apiFetch): Promise<
   }
 }
 
+// The limits narrowed to images, for the profile photo picker.
+export function imageLimits(limits: Limits): Limits {
+  const types = limits.allowed_types.filter((type) => type.startsWith('image/'));
+  const extensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
+  return {
+    ...limits,
+    allowed_types: types,
+    allowed_extensions: limits.allowed_extensions.filter((ext) => extensions.has(ext)),
+  };
+}
+
+// The sentence under the picker: size, count and accepted extensions.
+export function describeLimits(limits: Limits, maxFiles: number): string {
+  const count = maxFiles === 1 ? 'one file' : `up to ${maxFiles} files`;
+  const accepted = limits.allowed_extensions.length
+    ? ` Accepted: ${limits.allowed_extensions.join(', ')}.`
+    : '';
+  return `Up to ${limits.max_upload_mb} MB each, ${count}.${accepted}`;
+}
+
 export function extensionOf(name: string): string {
   const dot = name.lastIndexOf('.');
   return dot < 0 ? '' : name.slice(dot).toLowerCase();
