@@ -29,6 +29,7 @@ from db import get_db
 from models import Membership, StoredFile
 from sessions import NOT_ALLOWED, CurrentUser, current_user
 from storage import LocalBackend, StorageBackend
+from submit_work import MAX_TEXT_CHARS
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -52,6 +53,8 @@ class LimitsOut(BaseModel):
     max_upload_mb: int
     allowed_types: list[str]
     allowed_extensions: list[str]
+    # The text submission limit too, so the form has one source for every limit it states.
+    max_text_chars: int
 
 
 class UploadIn(BaseModel):
@@ -105,6 +108,7 @@ def limits() -> LimitsOut:
         max_upload_mb=current.max_upload_mb,
         allowed_types=list(current.allowed_types),
         allowed_extensions=list(current.allowed_extensions),
+        max_text_chars=MAX_TEXT_CHARS,
     )
 
 

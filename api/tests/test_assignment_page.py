@@ -207,6 +207,16 @@ def test_the_late_policy_fields_are_the_ones_my_work_carries(
 # --- which button -------------------------------------------------------------------------
 
 
+def test_the_submit_kind_the_supervisor_asked_for_is_on_the_page(
+    client: TestClient, db: Session, world: World
+) -> None:
+    sign_in(client, MEMBER)
+    assert client.get(f"/assignments/{world.assignment.id}").json()["submission_kind"] is None
+    world.assignment.submission_kind = "file"
+    db.flush()
+    assert client.get(f"/assignments/{world.assignment.id}").json()["submission_kind"] == "file"
+
+
 def test_with_no_submission_the_page_offers_submit(client: TestClient, world: World) -> None:
     sign_in(client, MEMBER)
     body = get(client, world)

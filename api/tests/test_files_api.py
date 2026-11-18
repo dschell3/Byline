@@ -111,6 +111,7 @@ def test_limits_need_no_session(client: TestClient) -> None:
     assert body["max_upload_mb"] == storage.MAX_UPLOAD_MB
     assert "application/pdf" in body["allowed_types"]
     assert ".pdf" in body["allowed_extensions"]
+    assert body["max_text_chars"] == 20_000
 
 
 # --- POST /files ------------------------------------------------------------

@@ -75,6 +75,8 @@ class AssignmentDetail(BaseModel):
     submission_id: int | None
     # False once the late policy has stopped taking hand-ins. Only meaningful with no submission.
     can_submit: bool
+    # SCRUM-83: the kind the submit form opens on, or None to leave the choice to the member.
+    submission_kind: str | None
 
 
 def membership_reached(db: Session, person: Person, assignment_id: int) -> Membership | None:
@@ -168,4 +170,5 @@ def detail(
         late_cutoff_hours=assignment.late_cutoff_hours,
         submission_id=latest.id if latest else None,
         can_submit=can_still_be_handed_in(assignment, at),
+        submission_kind=assignment.submission_kind,
     )
