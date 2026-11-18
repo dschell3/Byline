@@ -25,6 +25,12 @@ export const FAILURE_MESSAGE: Record<SubmitFailure, string> = {
   rejected: 'That could not be submitted. What you typed is still here.',
 };
 
-export function isTooLong(kind: SubmissionKind, content: string): boolean {
-  return kind === 'text' && content.length > MAX_TEXT_CHARS;
+// Typed text and the note on a file submission share the API's text limit; URLs have their own.
+// The page passes the limit it read from /files/limits; the constant is the fallback.
+export function isTooLong(
+  kind: SubmissionKind,
+  content: string,
+  maxChars: number = MAX_TEXT_CHARS,
+): boolean {
+  return (kind === 'text' || kind === 'file') && content.length > maxChars;
 }

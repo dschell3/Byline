@@ -11,7 +11,18 @@ function fakeStore(initial: Record<string, string> = {}) {
   };
 }
 
-const typed: Draft = { kind: 'link', values: { text: 'my notes', link: 'https://x.test', pr: '' } };
+const typed: Draft = {
+  kind: 'link',
+  values: { text: 'my notes', link: 'https://x.test', pr: '', file: '' },
+  files: [],
+};
+const attached = {
+  id: 42,
+  name: 'brief.pdf',
+  content_type: 'application/pdf',
+  size_bytes: 10,
+  status: 'complete' as const,
+};
 
 describe('drafts', () => {
   test('what was typed comes back after a refresh, for the same assignment only', () => {
@@ -46,7 +57,7 @@ describe('drafts', () => {
     expect(loadDraft(7, fakeStore({ 'byline:draft:7': 'null' }))).toEqual(emptyDraft());
     expect(
       loadDraft(7, fakeStore({ 'byline:draft:7': '{"kind":"zip","values":{"text":5,"pr":"p"}}' })),
-    ).toEqual({ kind: 'text', values: { text: '', link: '', pr: 'p' } });
+    ).toEqual({ kind: 'text', values: { text: '', link: '', pr: 'p', file: '' }, files: [] });
   });
 
   test('missing or throwing storage reports false and never throws', () => {
@@ -79,7 +90,24 @@ describe('drafts', () => {
 
   test('hasContent ignores whitespace', () => {
     expect(hasContent(emptyDraft())).toBe(false);
-    expect(hasContent({ ...emptyDraft(), values: { text: '  ', link: '', pr: '' } })).toBe(false);
+    expect(
+      hasContent({ ...emptyDraft(), values: { text: '  ', link: '', pr: '', file: '' } }),
+    ).toBe(false);
+  });
+
+  test('attached files count as content and come back, damaged entries dropped (SCRUM-83)', () => {
+    const store = fakeStore();
+    const withFile: Draft = { ...emptyDraft(), kind: 'file', files: [attached] };
+    expect(hasContent(withFile)).toBe(true);
+    saveDraft(7, withFile, store);
+    expect(loadDraft(7, store)).toEqual(withFile);
+    const damaged = fakeStore({
+      'byline:draft:7': JSON.stringify({
+        kind: 'file',
+        files: [attached, { id: 'x' }, { ...attached, id: 43, status: 'pending' }, null],
+      }),
+    });
+    expect(loadDraft(7, damaged).files).toEqual([attached]);
     expect(hasContent(typed)).toBe(true);
   });
 });
