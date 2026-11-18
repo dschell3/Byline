@@ -3,6 +3,7 @@ import {
   badgeStatus,
   decisionLabel,
   fileName,
+  fileRows,
   scoreTotal,
   threads,
   versionLabel,
@@ -82,5 +83,16 @@ describe('wording', () => {
       'volunteer-dashboard-v1.pdf',
     );
     expect(fileName('plain.txt')).toBe('plain.txt');
+  });
+
+  test('fileRows links files with a row and names the rest (SCRUM-83)', () => {
+    const file = { id: 4, name: 'brief.pdf', content_type: 'application/pdf', size_bytes: 10 };
+    expect(fileRows({ file_keys: ['org-1/a.pdf'], files: [file] })).toEqual([
+      { kind: 'link', id: 4, name: 'brief.pdf', size_bytes: 10 },
+    ]);
+    expect(fileRows({ file_keys: ['submissions/demo/old.pdf'], files: [] })).toEqual([
+      { kind: 'name', name: 'old.pdf' },
+    ]);
+    expect(fileRows({ file_keys: [], files: [] })).toEqual([]);
   });
 });

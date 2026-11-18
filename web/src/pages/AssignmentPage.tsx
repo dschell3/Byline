@@ -203,6 +203,8 @@ function Reference({ assignment }: { assignment: Assignment }) {
               </a>
             </li>
           ))}
+          {/* SCRUM-83: assignment attachments carry a key but no stored_file id yet, so they
+              stay name and size until supervisors can upload them on P22. */}
           {attachments.map((file) => (
             <li key={file.name} className="flex items-start gap-2.5 text-ink-body">
               <FileIcon />
