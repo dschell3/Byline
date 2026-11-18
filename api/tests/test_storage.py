@@ -8,7 +8,7 @@ import pytest
 from botocore.stub import Stubber
 
 import storage
-from config import Settings
+from config import StorageSettings
 from storage import LocalBackend, R2Backend
 
 
@@ -78,7 +78,7 @@ def test_local_backend_refuses_keys_that_leave_the_directory(tmp_path: Path) -> 
 
 
 def test_backend_for_defaults_to_local(tmp_path: Path) -> None:
-    settings = Settings(database_url="postgresql://x", local_storage_dir=str(tmp_path))
+    settings = StorageSettings(local_storage_dir=str(tmp_path))
     backend = storage.backend_for(settings)
     assert isinstance(backend, LocalBackend)
     assert backend.root == tmp_path
@@ -140,9 +140,7 @@ def test_r2_delete_calls_delete_object(r2: R2Backend) -> None:
 
 
 def test_backend_for_r2_needs_all_four_values() -> None:
-    settings = Settings(
-        database_url="postgresql://x", storage_backend="r2", r2_endpoint="https://x", r2_bucket="b"
-    )
+    settings = StorageSettings(storage_backend="r2", r2_endpoint="https://x", r2_bucket="b")
     with pytest.raises(RuntimeError, match="R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY"):
         storage.backend_for(settings)
 

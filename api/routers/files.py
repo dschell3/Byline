@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 import files
 import sessions
 import storage
-from config import get_settings
+from config import StorageSettings
 from db import get_db
 from models import StoredFile
 from sessions import NOT_ALLOWED, CurrentUser, current_user
@@ -41,7 +41,7 @@ REFUSAL_STATUS = {
 @lru_cache
 def get_backend() -> StorageBackend:
     """One backend per process. Tests override this dependency with a LocalBackend."""
-    return storage.backend_for(get_settings())
+    return storage.backend_for(StorageSettings())
 
 
 DbDep = Annotated[Session, Depends(get_db)]

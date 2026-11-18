@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Protocol
 
-from config import Settings
+from config import StorageSettings
 
 # Long enough for a 25 MB upload on a slow connection; short enough that a leaked link soon dies.
 URL_TTL_SECONDS = 15 * 60
@@ -164,7 +164,7 @@ class R2Backend:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
 
-def backend_for(settings: Settings) -> StorageBackend:
+def backend_for(settings: StorageSettings) -> StorageBackend:
     if settings.storage_backend == "local":
         return LocalBackend(settings.local_storage_dir)
     values = {
