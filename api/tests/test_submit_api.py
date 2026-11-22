@@ -21,7 +21,6 @@ from main import app
 from models import Assignment, Membership, Organization, Person, Review, Submission, Team
 from security import hash_password
 from sessions import NOT_ALLOWED
-from submissions import previous_feedback
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
@@ -450,13 +449,12 @@ def test_resubmit_after_the_deadline_is_accepted(
     assert submit(client, world, content="Late fix").status_code == 201
 
 
-def test_previous_feedback_is_the_latest_final_review(
+def test_the_member_sees_the_reviewers_reason_but_not_ai_drafts(
     client: TestClient,
     db: Session,
     world: World,
 ) -> None:
-    assert previous_feedback(db, world.assignment_id, world.member_id) == []
-
+    """SCRUM-27: the reason reaches P13 and P14 through GET /submissions/{id}."""
     sign_in(client)
     first = submit(client, world)
     request_changes(db, first.json()["id"], reason="Show the empty state.")
@@ -470,5 +468,7 @@ def test_previous_feedback_is_the_latest_final_review(
     )
     db.flush()
 
-    feedback = previous_feedback(db, world.assignment_id, world.member_id)
-    assert [r.reason for r in feedback] == ["Show the empty state."]
+    history = client.get(f"/submissions/{first.json()['id']}")
+    assert history.status_code == 200
+    (version,) = history.json()["versions"]
+    assert [r["reason"] for r in version["reviews"]] == ["Show the empty state."]

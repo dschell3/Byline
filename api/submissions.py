@@ -280,23 +280,3 @@ def add_comment(
     db.add(comment)
     db.flush()
     return comment
-
-
-def previous_feedback(db: Session, assignment_id: int, membership_id: int) -> list[ReviewOut]:
-    """The final reviews, with scores, on the member's latest version (SCRUM-21).
-
-    This is what the resubmit screen shows above the form. AI drafts are left
-    out; an empty list means there is nothing to show yet.
-    """
-    latest = db.scalar(
-        select(Submission)
-        .where(
-            Submission.assignment_id == assignment_id,
-            Submission.membership_id == membership_id,
-        )
-        .order_by(Submission.version.desc())
-        .limit(1)
-    )
-    if latest is None:
-        return []
-    return _reviews(db, latest.id, include_drafts=False)
