@@ -280,3 +280,13 @@ def test_an_unknown_decision_is_refused(client: TestClient, seeded: Seeded) -> N
     sign_in(client, SUPERVISOR)
     r = client.post(review_url(seeded), json=body(seeded, decision="maybe"))
     assert r.status_code == 422
+
+
+def test_the_history_carries_the_checklist_to_score_against(
+    client: TestClient, seeded: Seeded
+) -> None:
+    sign_in(client, SUPERVISOR)
+    criteria = client.get(f"/submissions/{seeded.version2_id}").json()["assignment"]["criteria"]
+    assert [c["id"] for c in criteria] == seeded.criterion_ids
+    assert [c["position"] for c in criteria] == [1, 2, 3, 4]
+    assert sum(c["max_points"] for c in criteria) == 20
