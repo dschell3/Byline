@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useOutletContext, useParams } from 'react-router';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { FileLink } from '../components/FileLink';
 import { ReviewCard } from '../components/ReviewCard';
+import { ReviewForm } from '../components/ReviewForm';
 import { When } from '../components/When';
+import type { CurrentUser } from '../lib/auth';
 import { fetchHome } from '../lib/home';
+import { canReview } from '../lib/review';
 import { pointsLabel } from '../lib/work';
 import { formatInstant, viewerTimeZone } from '../lib/time';
 import {
@@ -17,13 +20,15 @@ import {
   versionLabel,
   SubmissionError,
   type Comment,
+  type Criterion,
   type Submission,
   type Version,
 } from '../lib/submission';
 
 // P14, "/s/:id": every version of one piece of work, its reviews and the comments on each,
 // oldest first. SCRUM-22. One id names a version; the page shows the whole history and
-// scrolls to the version that was asked for.
+// scrolls to the version that was asked for. A supervisor reviews the latest version here,
+// on the same page the queue links to (P20, SCRUM-26).
 
 type State =
   | { status: 'loading' }
@@ -138,12 +143,15 @@ function VersionSection({
   current,
   timeZone,
   onComment,
+  review = null,
 }: {
   version: Version;
   total: number;
   current: boolean;
   timeZone: string;
   onComment: (versionId: number, comment: Comment) => void;
+  // The supervisor's form, when this version can be reviewed.
+  review?: { criteria: Criterion[]; onReviewed: (submission: Submission) => void } | null;
 }) {
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const grouped = threads(version.comments);
@@ -210,13 +218,20 @@ function VersionSection({
       )}
 
       <h3 className="m-0 mt-6 text-card-title text-ink">Review</h3>
-      {version.reviews.length === 0 ? (
+      {version.reviews.length === 0 && !review ? (
         <p className="m-0 mt-2 text-body text-ink-body">Not reviewed yet.</p>
       ) : (
         <div className="mt-3 flex flex-col gap-3">
-          {version.reviews.map((review) => (
-            <ReviewCard key={review.id} review={review} timeZone={timeZone} />
+          {version.reviews.map((item) => (
+            <ReviewCard key={item.id} review={item} timeZone={timeZone} />
           ))}
+          {review && (
+            <ReviewForm
+              versionId={version.id}
+              criteria={review.criteria}
+              onReviewed={review.onReviewed}
+            />
+          )}
         </div>
       )}
 
@@ -263,6 +278,7 @@ function VersionSection({
 
 export default function SubmissionPage() {
   const { id = '' } = useParams();
+  const user = useOutletContext<CurrentUser>();
   const [state, setState] = useState<State>({ status: 'loading' });
   // The profile's zone first, then the browser's (SCRUM-15), the same source P10 uses.
   const [timeZone, setTimeZone] = useState(() => viewerTimeZone(null));
@@ -309,6 +325,11 @@ export default function SubmissionPage() {
         },
       };
     });
+  }, []);
+
+  // The API answers a review with the whole new history, so the page simply redraws from it.
+  const reviewed = useCallback((submission: Submission) => {
+    setState({ status: 'ready', submission });
   }, []);
 
   if (state.status === 'loading') return null;
@@ -389,6 +410,11 @@ export default function SubmissionPage() {
             current={v.id === requested.id}
             timeZone={timeZone}
             onComment={addComment}
+            review={
+              canReview(user?.roles ?? [], v, versions)
+                ? { criteria: assignment.criteria ?? [], onReviewed: reviewed }
+                : null
+            }
           />
         ))}
       </div>

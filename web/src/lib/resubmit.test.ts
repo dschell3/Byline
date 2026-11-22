@@ -33,7 +33,7 @@ function version(id: number, number: number, reviews: Review[] = []): Version {
 function submission(versions: Version[]): Submission {
   return {
     id: versions[0]?.id ?? 1,
-    assignment: { id: 1, title: 'Task', points_value: 20, due_at: null },
+    assignment: { id: 1, title: 'Task', points_value: 20, due_at: null, criteria: [] },
     member: { membership_id: 1, full_name: 'Amara Okafor' },
     versions,
   };

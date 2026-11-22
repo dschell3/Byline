@@ -86,11 +86,22 @@ class VersionOut(BaseModel):
     comments: list[CommentOut]
 
 
+class CriterionOut(BaseModel):
+    """One line of the checklist the reviewer scores on P20 (SCRUM-26)."""
+
+    id: int
+    position: int
+    text: str
+    detail: str | None
+    max_points: int
+
+
 class AssignmentOut(BaseModel):
     id: int
     title: str
     points_value: int
     due_at: datetime | None
+    criteria: list[CriterionOut] = []
 
 
 class MemberOut(BaseModel):
@@ -202,6 +213,20 @@ def _comments(db: Session, submission_id: int) -> list[CommentOut]:
     ]
 
 
+def _criteria(db: Session, assignment_id: int) -> list[CriterionOut]:
+    rows = db.scalars(
+        select(AssessmentCriterion)
+        .where(AssessmentCriterion.assignment_id == assignment_id)
+        .order_by(AssessmentCriterion.position)
+    )
+    return [
+        CriterionOut(
+            id=c.id, position=c.position, text=c.text, detail=c.detail, max_points=c.max_points
+        )
+        for c in rows
+    ]
+
+
 def history(db: Session, submission: Submission, viewer_is_owner: bool) -> SubmissionDetail:
     """Everything P14 shows for the work ``submission`` belongs to.
 
@@ -225,6 +250,7 @@ def history(db: Session, submission: Submission, viewer_is_owner: bool) -> Submi
             title=assignment.title,
             points_value=assignment.points_value,
             due_at=assignment.due_at,
+            criteria=_criteria(db, assignment.id),
         ),
         member=MemberOut(
             membership_id=submission.membership_id,
