@@ -4,6 +4,7 @@ import {
   buildReview,
   canReview,
   emptyDrafts,
+  hasReason,
   parseScore,
   reviewFailure,
   runningScores,
@@ -98,6 +99,21 @@ describe('the request', () => {
       ],
     });
     expect(buildReview('approved', criteria, drafts, '   ')?.reason).toBeNull();
+  });
+
+  test('is null when changes are requested without a reason (SCRUM-27)', () => {
+    const drafts = Object.fromEntries(criteria.map((c) => [c.id, { score: '3', note: '' }]));
+    expect(buildReview('changes_requested', criteria, drafts, '')).toBeNull();
+    expect(buildReview('changes_requested', criteria, drafts, '   ')).toBeNull();
+    expect(buildReview('approved', criteria, drafts, '')).not.toBeNull();
+  });
+});
+
+describe('the reason (SCRUM-27)', () => {
+  test('counts only when there is more than white space', () => {
+    expect(hasReason('Show the empty state.')).toBe(true);
+    expect(hasReason('  ')).toBe(false);
+    expect(hasReason('')).toBe(false);
   });
 });
 

@@ -65,13 +65,23 @@ export function runningScores(
   }));
 }
 
-// The request body, or null if any score is missing or out of range.
+// SCRUM-27: an intern is never asked to redo work without being told why, so "Request changes"
+// needs a written reason. Approving takes an optional one. The API checks this too.
+export const REASON_REQUIRED = 'Write a reason so the member knows what to change.';
+
+export function hasReason(reason: string): boolean {
+  return reason.trim() !== '';
+}
+
+// The request body, or null if any score is missing or out of range, or if changes are
+// requested without a reason.
 export function buildReview(
   decision: Decision,
   criteria: Criterion[],
   drafts: Record<number, ScoreDraft>,
   reason: string,
 ): ReviewInput | null {
+  if (decision === 'changes_requested' && !hasReason(reason)) return null;
   const parsed = criteria.map((c) => {
     const draft = drafts[c.id] ?? { score: '', note: '' };
     return {
