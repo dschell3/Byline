@@ -69,7 +69,7 @@ services:
       # service is recreated under a new URL, update this destination.
       - type: rewrite
         source: /api/*
-        destination: https://byline-api-mn90.onrender.com/*
+        destination: https://byline-api-2gth.onrender.com/*
       # React Router handles routing in the browser, so every path that is not
       # a real file has to be served index.html.
       - type: rewrite
