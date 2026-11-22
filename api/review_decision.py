@@ -1,9 +1,9 @@
 """A supervisor's decision on one submission (SCRUM-26, P20).
 
 ``POST /submissions/{id}/review`` writes a final review: approve or request
-changes, a score for every criterion of the assignment, and an optional
-written reason. SCRUM-27 makes the reason required on ``changes_requested``;
-until then it may be left out.
+changes, a score for every criterion of the assignment, and a written reason.
+The reason is required when changes are requested (SCRUM-27): an intern is
+never told to redo work without being told why. Approving takes an optional one.
 
 Rules, in the order they are checked:
 
@@ -12,6 +12,7 @@ Rules, in the order they are checked:
 * Only the latest version can be reviewed, and only while it is waiting
   (``submitted``). Anything else is a 409: someone already decided, or the
   member has sent a newer version.
+* Requesting changes needs a reason that is not blank. Without one it is a 422.
 * Every criterion of the assignment gets exactly one score, from 0 to its
   ``max_points``. Anything else is a 422.
 
@@ -41,6 +42,7 @@ WAITING = "submitted"
 
 NOT_WAITING = "This version is not waiting for review. Reload to see where it stands."
 NOT_LATEST = "The member has sent a newer version. Review that one instead."
+REASON_REQUIRED = "Write a reason so the member knows what to change."
 
 
 class ScoreIn(BaseModel):
@@ -128,6 +130,9 @@ def decide(db: Session, submission: Submission, author: Membership, body: Review
         raise ReviewError(409, NOT_LATEST)
     if submission.status != WAITING:
         raise ReviewError(409, NOT_WAITING)
+    # The reason has already been trimmed, so a blank one arrives here as None.
+    if body.decision == "changes_requested" and body.reason is None:
+        raise ReviewError(422, REASON_REQUIRED)
 
     criteria = list(
         db.scalars(
