@@ -4,11 +4,14 @@
 ``POST /submissions/{id}/comments`` adds to that version's thread. Both are
 allowed for the member who made it or a supervisor or admin in the same
 organization; everyone else, and any id that does not exist, gets 403.
+``POST /submissions/{id}/review`` is the supervisor's decision (SCRUM-26, P20);
+see review_decision.py for its rules.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+import review_decision
 import submissions
 import work
 from db import get_db
@@ -72,3 +75,25 @@ def add_comment(
         body=comment.body,
         created_at=comment.created_at,
     )
+
+
+@router.post("/{submission_id}/review", response_model=submissions.SubmissionDetail)
+def review_submission(
+    submission_id: int,
+    body: review_decision.ReviewIn,
+    response: Response,
+    user: CurrentUser = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> submissions.SubmissionDetail:
+    """Approve or request changes, with a score per criterion. Answers with the new history."""
+    submission, owner = _visible(db, user, submission_id)
+    author = review_decision.reviewer(db, user.person, owner)
+    if author is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NOT_ALLOWED)
+    try:
+        review_decision.decide(db, submission, author, body)
+    except review_decision.ReviewError as problem:
+        raise HTTPException(problem.status, detail=problem.detail) from problem
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return submissions.history(db, submission, viewer_is_owner=False)
