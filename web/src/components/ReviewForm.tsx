@@ -155,20 +155,17 @@ export function ReviewForm({
           </ol>
         )}
 
-        <label
-          htmlFor={`review-reason-${versionId}`}
-          className="m-0 mt-5 block text-meta font-semibold text-ink"
-        >
-          Reason (optional)
+        <label htmlFor="review-reason" className="mt-5 block">
+          <span className="block text-meta font-semibold text-ink">Reason (optional)</span>
+          <textarea
+            id="review-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={4}
+            maxLength={4000}
+            className="mt-1.5 w-full rounded-md border border-line bg-surface p-3 text-body text-ink focus:outline focus:outline-2 focus:outline-primary"
+          />
         </label>
-        <textarea
-          id={`review-reason-${versionId}`}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          rows={4}
-          maxLength={4000}
-          className="mt-1.5 w-full rounded-md border border-line bg-surface p-3 text-body text-ink focus:outline focus:outline-2 focus:outline-primary"
-        />
 
         {error && (
           <p role="alert" className="m-0 mt-2 text-meta text-status-overdue-text">
