@@ -113,9 +113,7 @@ export default function SignInPage() {
       <BrandPanel
         eyebrow="A record of real work"
         heading="Every approved piece, credited to you by name."
-        body="Byline turns twelve weeks of unpaid work into something you can hand to an employer."
-        quote="“I finished my internship with a spreadsheet row and no proof I had done anything.”"
-        quoteBy="why this exists"
+        body="Byline turns the work you do in your internship into something you can show an employer."
       />
     </div>
   );

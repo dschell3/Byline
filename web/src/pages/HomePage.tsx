@@ -135,10 +135,7 @@ function WhatHappensNext({ lead }: { lead: string }) {
       `${lead} approves it or asks for a change`,
       'If a change is asked for, the reason is written out for you.',
     ],
-    [
-      'Approved work is credited to you, permanently',
-      'It goes on your byline page, which is yours to keep.',
-    ],
+    ['Approved work is credited to you by name', 'It is listed on your byline page.'],
   ];
   return (
     <Card className="!p-6 hidden lg:block">
