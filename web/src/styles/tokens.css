@@ -11,13 +11,14 @@
   --color-line-strong: 211 217 208; /* #D3D9D0 */
   --color-ink: 38 59 57; /* #263B39 */
   --color-ink-body: 63 82 80; /* #3F5250 */
-  --color-ink-meta: 97 113 109; /* #61716D. Draft is #6B7A76 (4.2:1); darkened to 4.8:1 after Lyric asked for a readability check */
+  --color-ink-meta: 91 106 103; /* #5B6A67. Draft is #6B7A76 (4.2:1). SCRUM-85: at least 5:1 on page, surface and recessed */
   --color-primary: 40 81 65; /* #285141 */
   --color-primary-hover: 23 63 48; /* #173F30 */
   --color-on-primary: 255 255 255;
   --color-accent: 195 163 106; /* #C3A36A, gold. Fills and marks only, too light for text */
-  --color-accent-deep: 150 118 55; /* #967637, eyebrows and dots */
+  --color-accent-deep: 126 99 46; /* #7E632E, eyebrows and dots. SCRUM-85: was #967637 (3.8:1 on recessed), now 5:1 */
   --color-danger: 138 74 56; /* #8A4A38, destructive buttons */
+  --color-danger-text: 138 74 56; /* SCRUM-85: error text, 6:1 or more on every surface */
   --color-link: 40 81 65; /* text links and ghost buttons */
 
   --status-due-soon-text: 40 81 65; /* #285141 */
@@ -41,11 +42,11 @@
   --navy-heading: 255 255 255;
   --navy-body: 201 216 207; /* #C9D8CF, 6.1:1 */
   --navy-quote: 221 231 224; /* #DDE7E0 */
-  --navy-meta: 169 191 179; /* #A9BFB3, 4.6:1 */
-  --navy-footer: 169 191 179; /* #A9BFB3 */
+  --navy-meta: 184 202 192; /* #B8CAC0, 5.2:1. SCRUM-85: was #A9BFB3 (4.6:1) */
+  --navy-footer: 184 202 192; /* #B8CAC0, 5.2:1 */
   --navy-rule: 59 101 83; /* #3B6553 */
   --navy-bar: 82 125 105; /* #527D69 */
-  --navy-accent: 212 184 128; /* #D4B880, the theme gold lifted to 4.7:1 for the eyebrow */
+  --navy-accent: 218 195 147; /* #DAC393, the theme gold lifted to 5.2:1 for the eyebrow (SCRUM-85, was 4.7:1) */
   --navy-check: 166 220 185; /* #A6DCB9 */
 }
 
@@ -64,6 +65,7 @@
   --color-accent: 195 163 106; /* #C3A36A, the gold holds on dark */
   --color-accent-deep: 216 189 138; /* #D8BD8A, lighter so eyebrows read on dark */
   --color-danger: 166 90 69; /* #A65A45, deep enough for white text on dark */
+  --color-danger-text: 201 142 126; /* #C98E7E. SCRUM-85: the button fill is only 3.3:1 as text on dark */
   --color-link: 143 203 174; /* #8FCBAE, light green so links read on dark */
 
   --status-due-soon-text: 163 211 186;
