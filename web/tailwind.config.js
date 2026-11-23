@@ -47,7 +47,10 @@ export default {
           accent: token('navy-accent'),
           check: token('navy-check'),
         },
-        danger: token('color-danger'),
+        danger: {
+          DEFAULT: token('color-danger'),
+          text: token('color-danger-text'), // SCRUM-85: error messages, not button fills
+        },
         link: token('color-link'),
         // The six status words: text colour + fill colour
         status: {

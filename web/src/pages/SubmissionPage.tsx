@@ -118,7 +118,7 @@ function CommentForm({
         className="mt-1 w-full rounded-md border border-line bg-surface p-3 text-body text-ink focus:outline focus:outline-2 focus:outline-primary"
       />
       {error && (
-        <p role="alert" className="m-0 mt-1 text-meta text-danger">
+        <p role="alert" className="m-0 mt-1 text-meta text-danger-text">
           {error}
         </p>
       )}
