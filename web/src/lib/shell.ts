@@ -36,6 +36,7 @@ export function pageTitle(pathname: string): string {
   if (pathname.startsWith('/updates')) return 'Updates';
   if (pathname.startsWith('/a/')) return 'Assignment';
   if (pathname.startsWith('/s/')) return 'Submission';
+  if (pathname.startsWith('/review')) return 'Review queue';
   if (pathname.startsWith('/me')) return 'Profile & settings';
   return 'Byline';
 }

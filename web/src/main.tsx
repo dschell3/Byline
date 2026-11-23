@@ -8,6 +8,7 @@ import AssignmentPage from './pages/AssignmentPage.tsx';
 import HomePage from './pages/HomePage.tsx';
 import InvitePage from './pages/InvitePage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
+import ReviewQueuePage from './pages/ReviewQueuePage.tsx';
 import SignInPage from './pages/SignInPage.tsx';
 import SubmissionPage from './pages/SubmissionPage.tsx';
 import TokensPage from './pages/TokensPage.tsx';
@@ -28,6 +29,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/me" element={<ProfilePage />} />
             {/* P12: one assignment, with its criteria as a checklist (SCRUM-18). */}
             <Route path="/a/:id" element={<AssignmentPage />} />
+            {/* P19: the review queue, supervisors only (SCRUM-24). */}
+            <Route path="/review" element={<ReviewQueuePage />} />
             {/* P14: one submission's versions, reviews and comments (SCRUM-22). */}
             <Route path="/s/:id" element={<SubmissionPage />} />
           </Route>
