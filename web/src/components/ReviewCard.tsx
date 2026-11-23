@@ -1,7 +1,7 @@
 import { Card } from './ui/Card';
 import { Table, type Column } from './ui/Table';
 import { When } from './When';
-import { decisionLabel, scoreTotal, type Review, type Score } from '../lib/submission';
+import { decisionLabel, reviewScoreLabel, type Review, type Score } from '../lib/submission';
 
 // One review: who decided what and when, the written reason, and the score per criterion.
 // Used on P14 (SCRUM-22) and above the resubmit form on P13 (SCRUM-21).
@@ -26,7 +26,7 @@ export function ReviewCard({ review, timeZone }: { review: Review; timeZone: str
         <p className="m-0 text-card-title text-ink">{decisionLabel(review)}</p>
         <p className="m-0 text-meta text-ink-meta">
           <When iso={review.created_at} timeZone={timeZone} />
-          {review.scores.length > 0 && ` · ${scoreTotal(review.scores)}`}
+          {review.scores.length > 0 && ` · ${reviewScoreLabel(review.scores)}`}
         </p>
       </div>
       {review.reason && (

@@ -43,9 +43,24 @@ export type Version = {
   comments: Comment[];
 };
 
+// One line of the checklist a reviewer scores against on P20 (SCRUM-26).
+export type Criterion = {
+  id: number;
+  position: number;
+  text: string;
+  detail: string | null;
+  max_points: number;
+};
+
 export type Submission = {
   id: number;
-  assignment: { id: number; title: string; points_value: number; due_at: string | null };
+  assignment: {
+    id: number;
+    title: string;
+    points_value: number;
+    due_at: string | null;
+    criteria: Criterion[];
+  };
   member: { membership_id: number; full_name: string };
   versions: Version[];
 };
@@ -122,6 +137,14 @@ export function scoreTotal(scores: Score[]): string {
   const got = scores.reduce((sum, s) => sum + s.score, 0);
   const max = scores.reduce((sum, s) => sum + s.max_points, 0);
   return `${got} / ${max}`;
+}
+
+// Lyric's label (11/13 notes, SCRUM-26): "Review score: 12/20". It says "review score" so
+// nobody reads it as points awarded, which only My Points shows (SCRUM-29).
+export function reviewScoreLabel(scores: { score: number; max_points: number }[]): string {
+  const got = scores.reduce((sum, s) => sum + s.score, 0);
+  const max = scores.reduce((sum, s) => sum + s.max_points, 0);
+  return `Review score: ${got}/${max}`;
 }
 
 // The last part of an object key, which is the file's name once storage lands (SCRUM-19).

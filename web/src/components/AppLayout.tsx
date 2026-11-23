@@ -29,6 +29,18 @@ function Icon({ children }: IconProps) {
   );
 }
 
+// Supervisors and admins get the review queue (P19, SCRUM-24) between My work and My byline.
+const REVIEW_LINK = {
+  to: '/review',
+  label: 'Review queue',
+  icon: (
+    <Icon>
+      <path d="M4 6h16M4 12h16M4 18h10" />
+      <path d="m16 17 2 2 3-4" />
+    </Icon>
+  ),
+};
+
 const LINKS = [
   {
     to: '/',
@@ -59,6 +71,11 @@ const LINKS = [
     ),
   },
 ];
+
+function navLinks(roles: string[]) {
+  const canReview = roles.includes('supervisor') || roles.includes('admin');
+  return canReview ? [LINKS[0], REVIEW_LINK, ...LINKS.slice(1)] : LINKS;
+}
 
 function itemClass({ isActive }: { isActive: boolean }) {
   return `relative flex h-11 items-center gap-3 rounded-lg px-3 text-[14px] font-medium no-underline ${
@@ -217,7 +234,7 @@ export default function AppLayout() {
         )}
 
         <nav aria-label="Main" className="flex flex-col gap-1 px-3">
-          {LINKS.map((link) => (
+          {navLinks(user.roles).map((link) => (
             <NavLink key={link.to} to={link.to} end className={itemClass} onClick={close}>
               {link.icon}
               {link.label}
