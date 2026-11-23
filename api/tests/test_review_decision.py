@@ -161,11 +161,31 @@ def test_requesting_changes_keeps_the_reason_and_the_notes(
     assert [s["note"] for s in review["scores"]] == [None, "Stops at sign-up", None, None]
 
 
-def test_the_reason_is_optional_until_scrum_27(client: TestClient, seeded: Seeded) -> None:
+@pytest.mark.parametrize("reason", [None, "", "   "])
+def test_requesting_changes_without_a_reason_is_refused(  # SCRUM-27
+    client: TestClient, db: Session, seeded: Seeded, reason: str | None
+) -> None:
     sign_in(client, SUPERVISOR)
-    r = client.post(review_url(seeded), json=body(seeded, decision="changes_requested", reason=" "))
+    payload = body(seeded, decision="changes_requested", reason=reason)
+    r = client.post(review_url(seeded), json=payload)
+    assert r.status_code == 422
+    assert r.json()["detail"] == review_decision.REASON_REQUIRED
+    assert db.scalars(select(Review).where(Review.submission_id == seeded.version2_id)).all() == []
+    assert db.get(Submission, seeded.version2_id).status == "submitted"
+
+
+def test_approving_needs_no_reason(client: TestClient, seeded: Seeded) -> None:  # SCRUM-27
+    sign_in(client, SUPERVISOR)
+    r = client.post(review_url(seeded), json=body(seeded))
     assert r.status_code == 200
     assert r.json()["versions"][-1]["reviews"][0]["reason"] is None
+
+
+def test_an_approval_comment_is_kept(client: TestClient, seeded: Seeded) -> None:  # SCRUM-27
+    sign_in(client, SUPERVISOR)
+    r = client.post(review_url(seeded), json=body(seeded, reason="Clean flows."))
+    assert r.status_code == 200
+    assert r.json()["versions"][-1]["reviews"][0]["reason"] == "Clean flows."
 
 
 def test_an_admin_in_the_same_org_can_review(client: TestClient, seeded: Seeded) -> None:

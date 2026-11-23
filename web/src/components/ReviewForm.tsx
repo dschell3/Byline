@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import {
+  REASON_REQUIRED,
   buildReview,
   emptyDrafts,
+  hasReason,
   postReview,
   reviewFailure,
   runningScores,
@@ -13,9 +15,9 @@ import {
 } from '../lib/review';
 import { reviewScoreLabel, type Criterion, type Submission } from '../lib/submission';
 
-// P20 (SCRUM-26): the supervisor scores every criterion, can write a reason, and approves or
+// P20 (SCRUM-26): the supervisor scores every criterion, writes a reason, and approves or
 // requests changes. It sits on the latest version of /s/:id while that version is waiting.
-// SCRUM-27 makes the reason required when changes are requested; it is optional here.
+// SCRUM-27: "Request changes" stays off until a reason is written; approving needs none.
 
 const FIELD =
   'w-full rounded-md border bg-surface px-3 text-body text-ink focus:outline focus:outline-2 focus:outline-primary';
@@ -101,8 +103,15 @@ export function ReviewForm({
   const [checked, setChecked] = useState(false);
   const [error, setError] = useState('');
 
+  const reasonWritten = hasReason(reason);
+  const reasonHintId = `review-reason-hint-${versionId}`;
+
   async function decide(decision: Decision) {
     setChecked(true);
+    if (decision === 'changes_requested' && !reasonWritten) {
+      setError(REASON_REQUIRED);
+      return;
+    }
     const input = buildReview(decision, criteria, drafts, reason);
     if (input === null) {
       setError('Score every criterion first.');
@@ -156,7 +165,9 @@ export function ReviewForm({
         )}
 
         <label htmlFor="review-reason" className="mt-5 block">
-          <span className="block text-meta font-semibold text-ink">Reason (optional)</span>
+          <span className="block text-meta font-semibold text-ink">
+            Reason (needed to request changes)
+          </span>
           <textarea
             id="review-reason"
             value={reason}
@@ -186,12 +197,18 @@ export function ReviewForm({
             type="button"
             variant="secondary"
             loading={busy === 'changes_requested'}
-            disabled={busy !== null}
+            disabled={busy !== null || !reasonWritten}
+            aria-describedby={reasonWritten ? undefined : reasonHintId}
             onClick={() => decide('changes_requested')}
           >
             Request changes
           </Button>
         </div>
+        {!reasonWritten && (
+          <p id={reasonHintId} className="m-0 mt-2 text-meta text-ink-meta">
+            Write a reason above to request changes.
+          </p>
+        )}
       </form>
     </Card>
   );
