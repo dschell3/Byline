@@ -3,6 +3,7 @@ import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import type { CurrentUser } from '../lib/auth';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { FileUpload } from '../components/FileUpload';
 import { ResubmitFeedback } from '../components/ResubmitFeedback';
 import {
   clearDraft,
@@ -13,7 +14,8 @@ import {
   type Draft,
   type SubmissionKind,
 } from '../lib/draft';
-import { classifyFailure, FAILURE_MESSAGE, isTooLong, MAX_TEXT_CHARS } from '../lib/submitFailure';
+import { FALLBACK_LIMITS, fetchLimits, type Limits } from '../lib/files';
+import { classifyFailure, FAILURE_MESSAGE, isTooLong } from '../lib/submitFailure';
 import { isResubmit } from '../lib/resubmit';
 import { createSubmission } from '../lib/submitWork';
 import { fetchWork, type WorkItem } from '../lib/work';
@@ -56,7 +58,10 @@ const CHOICES: { kind: SubmissionKind; label: string }[] = [
   { kind: 'text', label: 'Write text' },
   { kind: 'link', label: 'Submit a link' },
   { kind: 'pr', label: 'GitHub pull request' },
+  { kind: 'file', label: 'Upload files' },
 ];
+
+const MAX_FILES = 10;
 
 export default function SubmitWorkPage() {
   const { id } = useParams();
@@ -74,6 +79,8 @@ export default function SubmitWorkPage() {
   const [draftState, setDraftState] = useState(() => openDraft(assignmentId, validId, user.id));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Every limit the form states comes from the API; the fallback mirrors it.
+  const [limits, setLimits] = useState<Limits>(FALLBACK_LIMITS);
   // A different assignment opens its own draft.
   if (draftState.assignmentId !== assignmentId || draftState.userId !== user.id) {
     setDraftState(openDraft(assignmentId, validId, user.id));
@@ -87,6 +94,9 @@ export default function SubmitWorkPage() {
   const draftKey = `${user.id}:${assignmentId}`;
   const kind = draft.kind;
   const content = draft.values[kind];
+  const maxChars = limits.max_text_chars;
+  // A file submission needs a file; the note is optional. Everything else needs its text.
+  const ready = kind === 'file' ? draft.files.length > 0 : content.trim() !== '';
 
   function update(next: Draft) {
     setSubmitError(null);
@@ -103,7 +113,11 @@ export default function SubmitWorkPage() {
     if (submitting || !validId || !online) return;
 
     const value = content.trim();
-    if (!value || isTooLong(kind, content) || (kind !== 'text' && value.length > 2048)) {
+    if (
+      !ready ||
+      isTooLong(kind, content, maxChars) ||
+      ((kind === 'link' || kind === 'pr') && value.length > 2048)
+    ) {
       setSubmitError('Enter valid content within the allowed length.');
       return;
     }
@@ -112,7 +126,12 @@ export default function SubmitWorkPage() {
     setSubmitError(null);
 
     try {
-      const response = await createSubmission(assignmentId, kind, value);
+      const response = await createSubmission(
+        assignmentId,
+        kind,
+        value,
+        draft.files.map((file) => file.id),
+      );
 
       if (!response.ok) {
         const message =
@@ -151,6 +170,14 @@ export default function SubmitWorkPage() {
   }
 
   useEffect(() => {
+    let active = true;
+    fetchLimits().then((loaded) => active && setLimits(loaded));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!validId) return;
 
     let active = true;
@@ -168,6 +195,16 @@ export default function SubmitWorkPage() {
           status: 'ready',
           assignment: item ?? null,
         });
+
+        // Open on the kind the supervisor asked for, unless a draft is already under way.
+        const wanted = item?.submission_kind;
+        if (wanted) {
+          setDraftState((current) =>
+            current.assignmentId === assignmentId && !hasContent(current.draft)
+              ? { ...current, draft: { ...current.draft, kind: wanted } }
+              : current,
+          );
+        }
       })
       .catch(() => {
         if (active) {
@@ -252,14 +289,33 @@ export default function SubmitWorkPage() {
                 {choice.label}
               </Button>
             ))}
-
-            <Button type="button" variant="secondary" disabled>
-              File upload — coming with file storage
-            </Button>
           </div>
 
           <div className="mt-6">
-            {kind === 'text' ? (
+            {kind === 'file' ? (
+              <div className="space-y-4">
+                <FileUpload
+                  limits={limits}
+                  files={draft.files}
+                  maxFiles={MAX_FILES}
+                  disabled={submitting}
+                  onChange={(files) => update({ ...draft, files })}
+                />
+                <label htmlFor="submission-note" className="block">
+                  <span className="mb-2 block text-meta font-semibold">Note (optional)</span>
+                  <textarea
+                    id="submission-note"
+                    rows={3}
+                    value={content}
+                    onChange={(event) =>
+                      update({ ...draft, values: { ...draft.values, file: event.target.value } })
+                    }
+                    placeholder="Anything your reviewer should know about these files"
+                    className="w-full rounded-md border border-line bg-surface p-3 text-body text-ink"
+                  />
+                </label>
+              </div>
+            ) : kind === 'text' ? (
               <label htmlFor="submission-text" className="block">
                 <span className="mb-2 block text-meta font-semibold">Your submission</span>
 
@@ -296,12 +352,12 @@ export default function SubmitWorkPage() {
                 />
               </label>
             )}
-            {kind === 'text' && (
+            {(kind === 'text' || kind === 'file') && (
               <p className="mt-2 text-meta text-ink-meta">
-                {content.length.toLocaleString()} / {MAX_TEXT_CHARS.toLocaleString()} characters
+                {content.length.toLocaleString()} / {maxChars.toLocaleString()} characters
               </p>
             )}
-            {isTooLong(kind, content) && (
+            {isTooLong(kind, content, maxChars) && (
               <p role="alert" className="mt-2 text-meta text-status-overdue-text">
                 {FAILURE_MESSAGE.too_large}
               </p>
@@ -310,7 +366,9 @@ export default function SubmitWorkPage() {
               {!draftState.saved
                 ? 'This browser cannot keep a draft, so keep a copy of what you type.'
                 : !online
-                  ? 'You are offline. Your draft is saved on this device.'
+                  ? hasContent(draft)
+                    ? 'You are offline. Your draft is saved on this device.'
+                    : 'You are offline.'
                   : draftState.restored
                     ? 'Draft restored from this device.'
                     : hasContent(draft)
@@ -333,7 +391,7 @@ export default function SubmitWorkPage() {
             <Button
               type="button"
               loading={submitting}
-              disabled={submitting || !online || !content.trim() || isTooLong(kind, content)}
+              disabled={submitting || !online || !ready || isTooLong(kind, content, maxChars)}
               onClick={() => void handleSubmit()}
             >
               {isResubmit(assignment) ? 'Resubmit work' : 'Submit work'}

@@ -26,6 +26,7 @@ function version(id: number, status: string): Version {
     status,
     submitted_at: '2026-11-20T10:00:00Z',
     file_keys: [],
+    files: [],
     submission_kind: 'text',
     content: 'work',
     reviews: [],

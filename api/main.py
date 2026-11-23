@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from routers import (
     assignments,
     auth,
+    files,
     invites,
     me,
     members,
@@ -18,6 +19,7 @@ from routers import (
 app = FastAPI(title="OverClock API")
 app.include_router(assignments.router)
 app.include_router(auth.router)
+app.include_router(files.router)
 app.include_router(invites.router)
 app.include_router(me.router)
 app.include_router(members.router)

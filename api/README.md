@@ -21,11 +21,17 @@ pip install -r requirements.txt
 
 ## Configuration
 
-The app reads a single variable from the environment.
+The app reads these from the environment (`api/config.py`).
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string. There is no default, so anything that touches the database fails loudly without it. |
+| `STORAGE_BACKEND` | `local` (default) or `r2`. See [File storage](#file-storage-scrum-83). |
+| `LOCAL_STORAGE_DIR` | Where the local backend keeps files. Defaults to `byline-files` under the system temp directory. |
+| `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | The bucket, when `STORAGE_BACKEND=r2`. All four are required. |
+
+The password-reset mailer reads its own `RESET_*` variables; see
+[Password reset](#password-reset-scrum-10).
 
 For local work put it in an `api/.env` file, which is gitignored:
 
@@ -199,13 +205,13 @@ because byline consent lives on `membership`.
 
 | Endpoint | Result |
 | --- | --- |
-| `GET /me/profile` | 200 with `full_name`, `email`, `photo_url`, `timezone`, `contact_preference`, `contact_detail`, `email_assignments`, `email_reminders`, `email_digest`, `public_byline_consent` and `public_byline_consent_at`. |
+| `GET /me/profile` | 200 with `full_name`, `email`, `photo_file_id`, `photo_url`, `timezone`, `contact_preference`, `contact_detail`, `email_assignments`, `email_reminders`, `email_digest`, `public_byline_consent` and `public_byline_consent_at`. |
 | `PATCH /me/profile` | Takes any subset of the fields below and returns 200 with the full profile after the change, in one transaction. 422 when any field is invalid, and then nothing is changed. |
 
 | Field | Rule |
 | --- | --- |
 | `full_name` | 1 to 200 characters after trimming. |
-| `photo_url` | An `https://` link of up to 2048 characters, or `null` to clear it. A link for now; uploads arrive with file storage (SCRUM-19, SCRUM-20). |
+| `photo_file_id` | The id of a complete image the caller uploaded through `POST /files` (SCRUM-83), or `null` to clear the photo. Anything else is 422. The response's `photo_url` is a short-lived download URL for it, so clients read the photo from there and never build the URL themselves. |
 | `timezone` | Must be an IANA name known to `zoneinfo.available_timezones()`, else 422. Unlike the invite flow, it never falls back to UTC. |
 | `contact_preference` | `email`, `discord` or `phone`. Default `email`. |
 | `contact_detail` | Up to 200 characters (a handle or number), or `null`. |
@@ -213,7 +219,7 @@ because byline consent lives on `membership`.
 | `public_byline_consent` | Boolean, off by default. Turning it on stamps `public_byline_consent_at` with the current UTC time. Turning it off clears the flag and keeps the stamp as history. Sending `true` again does not move the stamp. |
 
 Fields left out of a PATCH are not touched, and the ones above cannot be sent
-as `null` except `photo_url` and `contact_detail`. Unknown fields are ignored,
+as `null` except `photo_file_id` and `contact_detail`. Unknown fields are ignored,
 `email` included: changing an email needs the verification flow (SCRUM-12).
 Account emails (sign-in, password reset, invites, verification) have no
 setting here and always send.
@@ -324,6 +330,76 @@ The assignment page (P12, `/a/:id` in the web app) reads one endpoint.
 `scripts/seed_assignment.py` writes an assignment with all of this filled in
 and no submission, for local and staging use until supervisors can author
 assignments in the app (P22).
+
+## File storage (SCRUM-83)
+
+Files never pass through the API. The browser asks for an upload URL, PUTs
+the bytes straight to storage, then confirms; a download is a short-lived URL
+handed out after the access check. That keeps 25 MB uploads off the Render
+instance and makes the progress bar on the submit page real.
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `GET /files/limits` | No session needed. `{"max_upload_mb", "allowed_types", "allowed_extensions", "max_text_chars"}`. |
+| `POST /files` | Session required. `{"name", "content_type", "size_bytes"}` → 201 `{"id", "name", "content_type", "size_bytes", "status": "pending", "upload_url"}`. 413 `file_too_large`, 415 `file_type_not_allowed`, 403 with no active membership. Nothing is stored on a refusal. |
+| `POST /files/{id}/complete` | Uploader only. Marks the row `complete` once the object is in storage at the declared size; 409 `upload_incomplete` until then. 403 for anyone else and for a missing id. |
+| `GET /files/{id}` | Session required. `{..., "download_url"}` for a file the caller may open; 403 otherwise and for a missing id alike; 409 while pending. |
+| `PUT`/`GET /files/local/{key}` | The local backend's stand-in for the bucket. 404 on any other backend. |
+
+**Who may open a file** (`files.can_download`): the uploader always; a file
+on a submission follows `work.can_view`; a profile photo is visible to anyone
+active in that organization. Everyone else gets the same 403 as a missing id.
+
+**Limits** (`storage.py`): 25 MB and a fixed list of content types with the
+extensions each may carry (PDF, images, text, CSV, ZIP, Office). Both the
+declared type and the extension must match, so a renamed executable is
+refused. Keys are random under `org-{id}/`; the chosen filename lives in
+`stored_file.name` and comes back as the download filename.
+
+### Local backend
+
+The default. `STORAGE_BACKEND=local` keeps files in a directory on this
+machine, so development and CI need no bucket. In the compose stack they
+live in the `files` volume.
+
+### Cloudflare R2
+
+Staging and production use `STORAGE_BACKEND=r2`. Once per account:
+
+1. Cloudflare dashboard → **R2 Object Storage** → **Create bucket** (the name
+   becomes `R2_BUCKET`).
+2. **Manage R2 API Tokens** → **Create API token**, *Object Read & Write*,
+   scoped to that bucket. Copy the Access Key ID, the Secret Access Key (shown
+   once) and the S3 endpoint, `https://<account-id>.r2.cloudflarestorage.com`.
+3. On the bucket, **Settings → CORS policy**:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://byline-web-187u.onrender.com", "http://localhost:5173"],
+       "AllowedMethods": ["GET", "PUT"],
+       "AllowedHeaders": ["Content-Type", "Content-Length"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+4. Render → `byline-api` → **Environment**: `STORAGE_BACKEND=r2` and the four
+   `R2_*` values. Never in a file in this repository.
+
+The bucket is on a personal Cloudflare account for now and moves into The
+Emerson Empire's account under SCRUM-75: create it there the same way, swap
+the four values on Render and copy the objects across.
+
+Every storage test runs on the local backend or a stubbed client. One,
+`test_real_bucket_round_trip`, uses the real bucket and skips unless the
+four `R2_*` variables are set:
+
+```bash
+R2_ENDPOINT=... R2_BUCKET=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
+  python -m pytest tests/test_storage.py -k real_bucket
+```
 
 ## Tests
 

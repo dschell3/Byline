@@ -6,6 +6,7 @@ sessions.now(), which the clock fixture replaces so the tests can move time.
 
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,9 +19,11 @@ import ratelimit
 import sessions
 from db import Base, get_db
 from main import app
-from models import AuthSession, Cohort, Membership, Organization, Person, Team, Track
-from routers.me import NO_MEMBERSHIP
+from models import AuthSession, Cohort, Membership, Organization, Person, StoredFile, Team, Track
+from routers.files import get_backend
+from routers.me import NO_MEMBERSHIP, NOT_A_PHOTO
 from security import hash_password
+from storage import LocalBackend
 
 PASSWORD = "correct horse battery staple"
 INTERN = "amara.okafor@example.com"
@@ -30,6 +33,7 @@ LONER = "no.org@example.com"
 DEFAULT_PROFILE = {
     "full_name": "Amara Okafor",
     "email": INTERN,
+    "photo_file_id": None,
     "photo_url": None,
     "timezone": "Africa/Lagos",
     "contact_preference": "email",
@@ -48,7 +52,7 @@ def factory() -> sessionmaker[Session]:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    tables = [Organization, Person, Team, Cohort, Track, Membership, AuthSession]
+    tables = [Organization, Person, Team, Cohort, Track, Membership, AuthSession, StoredFile]
     Base.metadata.create_all(engine, tables=[model.__table__ for model in tables])
     factory = sessionmaker(bind=engine)
     with factory() as db:
@@ -72,17 +76,39 @@ def factory() -> sessionmaker[Session]:
             ]
         )
         db.add(Membership(id=1, person_id=1, organization_id=1, role="member"))
+        db.add(Membership(id=2, person_id=2, organization_id=1, role="member", is_active=False))
+        # SCRUM-83: uploads to choose a photo from. 10 is the intern's finished image;
+        # 11 is still pending, 12 is a PDF, 13 is someone else's image.
+        for id_, uploader, content_type, status in (
+            (10, 1, "image/png", "complete"),
+            (11, 1, "image/png", "pending"),
+            (12, 1, "application/pdf", "complete"),
+            (13, 2, "image/png", "complete"),
+        ):
+            db.add(
+                StoredFile(
+                    id=id_,
+                    organization_id=1,
+                    uploaded_by_membership_id=uploader,
+                    key=f"org-1/photo-{id_}.png",
+                    name=f"photo-{id_}.png",
+                    content_type=content_type,
+                    size_bytes=10,
+                    status=status,
+                )
+            )
         db.commit()
     return factory
 
 
 @pytest.fixture
-def client(factory: sessionmaker[Session]) -> Iterator[TestClient]:
+def client(factory: sessionmaker[Session], tmp_path: Path) -> Iterator[TestClient]:
     def override_get_db() -> Iterator[Session]:
         with factory() as db:
             yield db
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_backend] = lambda: LocalBackend(tmp_path)
     ratelimit.by_account._events.clear()
     ratelimit.by_ip._events.clear()
     try:
@@ -230,7 +256,7 @@ def test_a_partial_patch_leaves_other_fields_alone(client: TestClient) -> None:
     client.patch(
         "/me/profile",
         json={
-            "photo_url": "https://example.com/amara.png",
+            "photo_file_id": 10,
             "email_digest": False,
             "contact_preference": "phone",
             "contact_detail": "555-0100",
@@ -240,7 +266,8 @@ def test_a_partial_patch_leaves_other_fields_alone(client: TestClient) -> None:
     assert r.status_code == 200
     assert r.json() == {
         **DEFAULT_PROFILE,
-        "photo_url": "https://example.com/amara.png",
+        "photo_file_id": 10,
+        "photo_url": "/api/files/local/org-1/photo-10.png",
         "email_digest": False,
         "contact_preference": "phone",
         "contact_detail": "555-0100",
@@ -248,15 +275,31 @@ def test_a_partial_patch_leaves_other_fields_alone(client: TestClient) -> None:
     }
 
 
-def test_photo_must_be_https_and_null_clears_it(client: TestClient) -> None:
+def test_photo_is_one_of_your_own_finished_image_uploads(client: TestClient) -> None:
+    """SCRUM-83: pending, not an image, someone else's, missing: all 422 and nothing changes."""
     sign_in(client)
-    for bad in ("http://example.com/a.png", "not a link", "https://", ""):
-        assert client.patch("/me/profile", json={"photo_url": bad}).status_code == 422
-    r = client.patch("/me/profile", json={"photo_url": "https://example.com/a.png"})
-    assert r.json()["photo_url"] == "https://example.com/a.png"
-    cleared = client.patch("/me/profile", json={"photo_url": None})
+    for bad in (11, 12, 13, 999):
+        r = client.patch("/me/profile", json={"photo_file_id": bad})
+        assert r.status_code == 422, bad
+        assert r.json()["detail"] == NOT_A_PHOTO
+    assert client.get("/me/profile").json()["photo_file_id"] is None
+
+    r = client.patch("/me/profile", json={"photo_file_id": 10})
+    assert r.status_code == 200
+    assert r.json()["photo_file_id"] == 10
+    assert r.json()["photo_url"] == "/api/files/local/org-1/photo-10.png"
+
+    cleared = client.patch("/me/profile", json={"photo_file_id": None})
     assert cleared.status_code == 200
+    assert cleared.json()["photo_file_id"] is None
     assert cleared.json()["photo_url"] is None
+
+
+def test_the_old_photo_link_field_is_ignored(client: TestClient) -> None:
+    sign_in(client)
+    r = client.patch("/me/profile", json={"photo_url": "https://example.com/a.png"})
+    assert r.status_code == 200
+    assert r.json()["photo_url"] is None
 
 
 def test_a_blank_or_null_name_is_422(client: TestClient) -> None:

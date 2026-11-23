@@ -27,5 +27,11 @@ describe('isTooLong', () => {
     expect(isTooLong('text', 'a'.repeat(MAX_TEXT_CHARS))).toBe(false);
     expect(isTooLong('text', 'a'.repeat(MAX_TEXT_CHARS + 1))).toBe(true);
     expect(isTooLong('link', 'a'.repeat(MAX_TEXT_CHARS + 1))).toBe(false);
+    expect(isTooLong('file', 'a'.repeat(MAX_TEXT_CHARS + 1))).toBe(true);
+  });
+
+  test('the limit the API reports wins over the constant', () => {
+    expect(isTooLong('text', 'a'.repeat(11), 10)).toBe(true);
+    expect(isTooLong('text', 'a'.repeat(10), 10)).toBe(false);
   });
 });

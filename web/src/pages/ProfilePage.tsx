@@ -5,6 +5,15 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { FileUpload } from '../components/FileUpload';
+import {
+  FALLBACK_LIMITS,
+  downloadUrl,
+  fetchLimits,
+  imageLimits,
+  type Limits,
+  type StoredFile,
+} from '../lib/files';
 import { initials, timeZoneLabel } from '../lib/home';
 import { UNREACHABLE, browserTimeZone } from '../lib/invite';
 import {
@@ -142,6 +151,36 @@ function ProfileEditor({ profile }: { profile: Profile }) {
   const [badFields, setBadFields] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const zones = useMemo(() => timeZoneOptions(), []);
+  // A newly uploaded photo is previewed from its own download URL until Save.
+  const [limits, setLimits] = useState<Limits>(FALLBACK_LIMITS);
+  const [picked, setPicked] = useState<StoredFile | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    let current = true;
+    fetchLimits().then((loaded) => current && setLimits(loaded));
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  function choosePhoto(files: StoredFile[]) {
+    const file = files[0] ?? null;
+    setPicked(file);
+    setPreview(null);
+    update('photo_file_id', file ? file.id : null);
+    if (file) {
+      void downloadUrl(file.id).then((url) => setPreview((current) => (file ? url : current)));
+    }
+  }
+
+  function removePhoto() {
+    setPicked(null);
+    setPreview(null);
+    update('photo_file_id', null);
+  }
+
+  const avatarUrl = form.photo_file_id === saved.photo_file_id ? saved.photo_url : preview;
 
   function update<K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -176,6 +215,8 @@ function ProfileEditor({ profile }: { profile: Profile }) {
       }
       const zoneChanged = result.profile.timezone !== saved.timezone;
       setSaved(result.profile);
+      setPicked(null);
+      setPreview(null);
       setForm(toForm(result.profile));
       setNotice('Saved');
       if (zoneChanged) navigate('/');
@@ -204,7 +245,7 @@ function ProfileEditor({ profile }: { profile: Profile }) {
             <h2 className={SECTION_TITLE}>About you</h2>
 
             <div className="mt-5 flex items-center gap-4">
-              <Avatar key={saved.photo_url ?? ''} name={saved.full_name} url={saved.photo_url} />
+              <Avatar key={avatarUrl ?? ''} name={saved.full_name} url={avatarUrl} />
               <div className="min-w-0">
                 <p className="m-0 truncate text-[16px] font-semibold text-ink">{saved.full_name}</p>
                 <p className="m-0 truncate text-meta text-ink-meta">{saved.email}</p>
@@ -271,16 +312,30 @@ function ProfileEditor({ profile }: { profile: Profile }) {
               </div>
 
               <div className="sm:col-span-2">
-                <Input
-                  label="Photo link"
-                  value={form.photo_url}
-                  onChange={(event) => update('photo_url', event.target.value)}
-                  hint="A link to a picture, starting with https://. Uploading a photo comes later."
-                  error={fieldError('photo_url')}
-                  inputMode="url"
-                  autoComplete="off"
-                  spellCheck={false}
+                <FileUpload
+                  label="Change photo"
+                  limits={imageLimits(limits)}
+                  files={picked ? [picked] : []}
+                  maxFiles={1}
+                  disabled={saving}
+                  onChange={(files) => choosePhoto(files)}
                 />
+                {fieldError('photo_file_id') && (
+                  <p role="alert" className="m-0 mt-1.5 text-meta text-status-overdue-text">
+                    {fieldError('photo_file_id')}
+                  </p>
+                )}
+                {form.photo_file_id !== null && !picked && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => removePhoto()}
+                  >
+                    Remove photo
+                  </Button>
+                )}
               </div>
             </div>
 

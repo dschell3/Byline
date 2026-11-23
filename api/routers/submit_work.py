@@ -12,9 +12,11 @@ import late_policy
 import resubmit
 import sessions
 from db import get_db
-from models import Assignment, Membership, Person, Submission
+from models import Assignment, Membership, Person, StoredFile, Submission
 from sessions import NOT_ALLOWED, CurrentUser, current_user
 from submit_work import SubmitWorkRequest
+
+FILES_NOT_READY = "Attach files that have finished uploading."
 
 router = APIRouter(prefix="/assignments", tags=["submissions"])
 
@@ -25,8 +27,30 @@ class CreatedSubmission(BaseModel):
     version: int
     kind: str
     content: str
+    file_ids: list[int]
     status: str
     submitted_at: datetime
+
+
+def _attached_keys(db: Session, member: Membership, file_ids: list[int]) -> list[str]:
+    """The object keys for ``file_ids``, in that order; 422 unless every one is ready.
+
+    Ready means a complete stored_file this member uploaded. A stranger's
+    id, a pending upload and a missing id all fail the same way, so ids
+    cannot be probed through this endpoint either.
+    """
+    if not file_ids:
+        return []
+    rows = {
+        row.id: row for row in db.scalars(select(StoredFile).where(StoredFile.id.in_(file_ids)))
+    }
+    keys = []
+    for file_id in file_ids:
+        row = rows.get(file_id)
+        if row is None or row.status != "complete" or row.uploaded_by_membership_id != member.id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=FILES_NOT_READY)
+        keys.append(row.key)
+    return keys
 
 
 @router.post(
@@ -92,6 +116,8 @@ def create_submission(
             detail="This assignment has already been submitted.",
         )
 
+    file_keys = _attached_keys(db, member, body.file_ids)
+
     submitted_at = sessions.now()
 
     # Lateness is judged on the first hand-in only (SCRUM-23), so a resubmission
@@ -106,9 +132,9 @@ def create_submission(
         assignment_id=assignment.id,
         membership_id=member.id,
         version=resubmit.next_version(latest),
-        file_keys=None,
+        file_keys=file_keys or None,
         submission_kind=body.kind,
-        content=body.content,
+        content=body.content or None,
         status="submitted",
         submitted_at=submitted_at,
     )
@@ -125,6 +151,7 @@ def create_submission(
         version=submission.version,
         kind=body.kind,
         content=body.content,
+        file_ids=body.file_ids,
         status=submission.status,
         submitted_at=submission.submitted_at,
     )
