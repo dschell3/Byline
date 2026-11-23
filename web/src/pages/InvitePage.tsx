@@ -293,10 +293,8 @@ export default function InvitePage() {
       </main>
       <BrandPanel
         eyebrow="Day one"
-        heading="This is the first thing a new intern ever sees."
-        body="It creates the account and the membership in one action — and it says who invited you, which cohort you are joining and when it starts, before you type anything."
-        quote="“Expired? Ask for a new one — the link is the only thing that expired, not your place.”"
-        quoteBy="the expired-invite state"
+        heading="Welcome to your internship."
+        body="Your invite shows who invited you, which cohort you are joining and when it starts. Set a password and you are in."
       />
     </div>
   );
